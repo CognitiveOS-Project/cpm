@@ -47,6 +47,15 @@ export CPM_PATCHES_DIR=/tmp/cpm-test/patches
 export CPM_CACHE_DIR=/tmp/cpm-test/cache
 ```
 
+## Related
+
+- [CognitiveOS](https://github.com/CognitiveOS-Project/cognitiveos) — main project repository
+- [cognitive-os.org](https://cognitive-os.org) — project website
+- [Registry Server](https://github.com/CognitiveOS-Project/registry-server) — .cgp package registry
+- [cgp-template](https://github.com/CognitiveOS-Project/cgp-template) — .cgp package boilerplate
+- [Product Specs](https://github.com/CognitiveOS-Project/product-specs) — .cgp format specification
+- [CognitiveOS Project](https://github.com/CognitiveOS-Project) — GitHub organization
+
 ## Author
 
 **Jean Machuca** — [GitHub](https://github.com/jeanmachuca) · [Sponsor](https://github.com/sponsors/jeanmachuca)
