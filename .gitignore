@@ -20,3 +20,6 @@ Thumbs.db
 *.swp
 *.swo
 bin/
+
+# Editor backups
+* 2.*
