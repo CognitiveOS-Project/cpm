@@ -47,16 +47,6 @@ export CPM_PATCHES_DIR=/tmp/cpm-test/patches
 export CPM_CACHE_DIR=/tmp/cpm-test/cache
 ```
 
-<<<<<<< Updated upstream
-## Related
-
-- [CognitiveOS](https://github.com/CognitiveOS-Project/cognitiveos) — main project repository
-- [cognitive-os.org](https://cognitive-os.org) — project website
-- [Registry Server](https://github.com/CognitiveOS-Project/registry-server) — .cgp package registry
-- [cgp-template](https://github.com/CognitiveOS-Project/cgp-template) — .cgp package boilerplate
-- [Product Specs](https://github.com/CognitiveOS-Project/product-specs) — .cgp format specification
-- [CognitiveOS Project](https://github.com/CognitiveOS-Project) — GitHub organization
-=======
 ## Contributing
 
 1. Branch from `development`, not `main`
@@ -66,7 +56,6 @@ export CPM_CACHE_DIR=/tmp/cpm-test/cache
 5. Changes flow to `main` via a release PR
 
 See the [SDLC repo](https://github.com/CognitiveOS-Project/sdlc) for the full contribution guide, code review standards, and testing strategy.
->>>>>>> Stashed changes
 
 ## Author
 
