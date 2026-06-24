@@ -47,6 +47,10 @@ export CPM_PATCHES_DIR=/tmp/cpm-test/patches
 export CPM_CACHE_DIR=/tmp/cpm-test/cache
 ```
 
+## Author
+
+**Jean Machuca** — [GitHub](https://github.com/jeanmachuca) · [Sponsor](https://github.com/sponsors/jeanmachuca)
+
 ## License
 
 MIT
