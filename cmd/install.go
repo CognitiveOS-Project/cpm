@@ -184,13 +184,32 @@ func cacheDir() string {
 
 func resolveRegistry() string {
 	if registryURL != "" {
-		return registryURL
+		if isURL(registryURL) {
+			return registryURL
+		}
+		cfg, err := config.Load(config.RegistriesPath())
+		if err != nil {
+			return defaultPrimary()
+		}
+		url, err := cfg.Resolve(registryURL)
+		if err != nil {
+			return defaultPrimary()
+		}
+		return url
 	}
 	cfg, err := config.Load(config.RegistriesPath())
 	if err != nil {
-		return "https://registry.cognitive-os.org/v1"
+		return defaultPrimary()
 	}
-	return cfg.DefaultRegistry
+	return cfg.Official.Primary
+}
+
+func isURL(s string) bool {
+	return len(s) > 4 && (s[:4] == "http" || s[:5] == "https")
+}
+
+func defaultPrimary() string {
+	return "https://registry-us-all-distros-official.cognitive-os.org/v1"
 }
 
 func init() {
