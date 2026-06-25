@@ -2,17 +2,15 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/CognitiveOS-Project/cpm/internal/archive"
 	"github.com/CognitiveOS-Project/cpm/internal/audit"
 	"github.com/CognitiveOS-Project/cpm/internal/check"
 	"github.com/CognitiveOS-Project/cpm/internal/config"
 	"github.com/CognitiveOS-Project/cpm/internal/log"
 	"github.com/CognitiveOS-Project/cpm/internal/patch"
-	"github.com/CognitiveOS-Project/cpm/internal/registry"
+	"github.com/CognitiveOS-Project/cpm/internal/resolver"
 	"github.com/CognitiveOS-Project/cpm/internal/schema"
 	"github.com/spf13/cobra"
 )
@@ -20,11 +18,17 @@ import (
 var installCmd = &cobra.Command{
 	Use:   "install <path|name>",
 	Short: "Install a .cgp cognitive patch",
-	Long: `Install a patch from a local .cgp file or resolve from registry.
+	Long: `Install a cognitive patch from any source using the universal protocol resolver.
 
-Examples:
-  cpm install ./email-manager.cgp
-  cpm install email-manager`,
+Sources include:
+  - Local .cgp file:     cpm install ./email-manager.cgp
+  - Registry name:       cpm install email-manager
+  - GitHub repo:         cpm install github.com/user/repo@v1.0.0
+  - GitHub Release:      cpm install ghr:user/repo@v1.0.0
+  - npm package:         cpm install npm:@scope/name
+  - Bun package:         cpm install bun:name
+  - Deno module:         cpm install deno:@scope/name
+  - Direct URL:          cpm install https://example.com/pkg.cgp`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
@@ -34,75 +38,14 @@ Examples:
 			return fmt.Errorf("already installed")
 		}
 
-		// Determine source
-		var m *archive.Manifest
-		var dataPath string
-
-		if fi, err := os.Stat(target); err == nil && !fi.IsDir() {
-			f, err := os.Open(target)
-			if err != nil {
-				return fmt.Errorf("open %s: %w", target, err)
-			}
-			defer f.Close()
-
-			m, err = archive.ReadManifest(f)
-			if err != nil {
-				return fmt.Errorf("read archive: %w", err)
-			}
-			dataPath = target
-		} else {
-			regURL := resolveRegistry()
-			if regURL == "" {
-				return fmt.Errorf("no registry configured")
-			}
-			rc := registry.New(regURL)
-
-			meta, err := rc.GetMetadata(target, "")
-			if err != nil {
-				return fmt.Errorf("resolve %q from registry: %w", target, err)
-			}
-
-			cacheDir := cacheDir()
-			_ = os.MkdirAll(cacheDir, 0755)
-			dataPath = filepath.Join(cacheDir, meta.Name+"-"+meta.Version+".cgp")
-
-			if _, err := os.Stat(dataPath); err != nil {
-				tmpPath := dataPath + ".tmp"
-				body, err := rc.Download(meta.Name, meta.Version)
-				if err != nil {
-					return fmt.Errorf("download: %w", err)
-				}
-
-				f, err := os.Create(tmpPath)
-				if err != nil {
-					body.Close()
-					return fmt.Errorf("create temp: %w", err)
-				}
-				if _, err := io.Copy(f, body); err != nil {
-					body.Close()
-					f.Close()
-					os.Remove(tmpPath)
-					return fmt.Errorf("write temp: %w", err)
-				}
-				body.Close()
-				f.Close()
-
-				if err := os.Rename(tmpPath, dataPath); err != nil {
-					os.Remove(tmpPath)
-					return fmt.Errorf("rename: %w", err)
-				}
-			}
-
-			f, err := os.Open(dataPath)
-			if err != nil {
-				return fmt.Errorf("open cached: %w", err)
-			}
-			m, err = archive.ReadManifest(f)
-			f.Close()
-			if err != nil {
-				return fmt.Errorf("read manifest: %w", err)
-			}
+		// Determine source via universal protocol resolver
+		regURL := resolveRegistry()
+		result, err := resolver.Resolve(target, regURL)
+		if err != nil {
+			return fmt.Errorf("resolve %q: %w", target, err)
 		}
+
+		m := result.Manifest
 
 		// Validate schema
 		doc := map[string]interface{}{
@@ -152,21 +95,31 @@ Examples:
 			}
 		}
 
-		// Extract
+		// Move extracted data to install path
 		installPath := patch.Dir(m.Name)
-		if err := os.MkdirAll(installPath, 0755); err != nil {
-			return fmt.Errorf("create install dir: %w", err)
+		_ = os.RemoveAll(installPath)
+		if err := os.MkdirAll(filepath.Dir(installPath), 0755); err != nil {
+			_ = os.RemoveAll(result.DataDir)
+			return fmt.Errorf("create parent dir: %w", err)
 		}
 
-		f, err := os.Open(dataPath)
-		if err != nil {
-			return fmt.Errorf("open archive: %w", err)
+		if err := os.Rename(result.DataDir, installPath); err != nil {
+			// Fallback: copy across filesystems
+			if err := copyDir(result.DataDir, installPath); err != nil {
+				_ = os.RemoveAll(installPath)
+				_ = os.RemoveAll(result.DataDir)
+				return fmt.Errorf("extract: %w", err)
+			}
+			_ = os.RemoveAll(result.DataDir)
 		}
-		defer f.Close()
 
-		if err := archive.Extract(f, installPath); err != nil {
-			os.RemoveAll(installPath)
-			return fmt.Errorf("extract: %w", err)
+		// Log checksum for audit trail
+		if result.Checksum != "" {
+			log.Audit("checksum", map[string]interface{}{
+				"name":     m.Name,
+				"version":  m.Version,
+				"checksum": result.Checksum,
+			})
 		}
 
 		log.Info("Installed %s v%s", m.Name, m.Version)
@@ -210,6 +163,30 @@ func isURL(s string) bool {
 
 func defaultPrimary() string {
 	return "https://registry-us-all-distros-official.cognitive-os.org/v1"
+}
+
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return nil
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
 }
 
 func init() {
