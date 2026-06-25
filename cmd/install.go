@@ -8,6 +8,7 @@ import (
 
 	"github.com/CognitiveOS-Project/cpm/internal/archive"
 	"github.com/CognitiveOS-Project/cpm/internal/audit"
+	"github.com/CognitiveOS-Project/cpm/internal/check"
 	"github.com/CognitiveOS-Project/cpm/internal/config"
 	"github.com/CognitiveOS-Project/cpm/internal/log"
 	"github.com/CognitiveOS-Project/cpm/internal/patch"
@@ -126,6 +127,28 @@ Examples:
 				log.Warn("Hardware audit failed: %v", err)
 			} else if err := audit.Check(m.HardwareRequirements, res); err != nil {
 				return fmt.Errorf("hardware: %w", err)
+			}
+		}
+
+		// Source validation — check issues URL reachability
+		if m.Source != nil {
+			if m.Source.Issues != "" {
+				if err := check.IssuesReachable(m.Source.Issues); err != nil {
+					log.Warn("Source issues URL: %v", err)
+				}
+			}
+
+			result, err := check.CheckForBugs(m.Source)
+			if err != nil {
+				return fmt.Errorf("bug check: %w", err)
+			}
+			if result.HasBugs {
+				log.Audit("known_bugs", map[string]interface{}{
+					"name":  m.Name,
+					"count": result.Count,
+					"urls":  result.URLs,
+				})
+				return fmt.Errorf("refusing to install %q — %d open bug(s) found", m.Name, result.Count)
 			}
 		}
 
