@@ -22,5 +22,6 @@ Thumbs.db
 *.swo
 bin/
 
-# Editor backups
+# Editor backups & trailing-space typos
 * 2.*
+* 2/
