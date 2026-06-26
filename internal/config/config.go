@@ -24,7 +24,7 @@ type OfficialRegistries struct {
 }
 
 func Load(path string) (*Registries, error) {
-	r := defaultRegistries()
+	r := DefaultRegistries()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -58,7 +58,7 @@ func Load(path string) (*Registries, error) {
 	return r, nil
 }
 
-func defaultRegistries() *Registries {
+func DefaultRegistries() *Registries {
 	return &Registries{
 		Official: OfficialRegistries{
 			Primary: "https://registry-us-all-distros-official.cognitive-os.org/v1",

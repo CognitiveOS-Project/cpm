@@ -135,6 +135,14 @@ func cacheDir() string {
 	return "/cognitiveos/data/cache/downloads"
 }
 
+func resolveConfig() *config.Registries {
+	regs, err := config.Load(config.RegistriesPath())
+	if err != nil {
+		return config.DefaultRegistries()
+	}
+	return regs
+}
+
 func resolveRegistry() string {
 	if registryURL != "" {
 		if isURL(registryURL) {
