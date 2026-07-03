@@ -42,7 +42,7 @@ Examples:
 			return fmt.Errorf("read manifest: %w", err)
 		}
 
-		f.Seek(0, 0)
+		_, _ = f.Seek(0, 0)
 		hasher := sha256.New()
 		if _, err := io.Copy(hasher, f); err != nil {
 			return fmt.Errorf("checksum: %w", err)
