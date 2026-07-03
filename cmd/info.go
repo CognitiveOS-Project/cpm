@@ -64,7 +64,7 @@ var infoCmd = &cobra.Command{
 
 func dirSize(path string) int64 {
 	var size int64
-	filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
+	_ = filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
 		if err == nil && !fi.IsDir() {
 			size += fi.Size()
 		}

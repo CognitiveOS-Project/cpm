@@ -87,7 +87,7 @@ var updateCmd = &cobra.Command{
 			return fmt.Errorf("swap: %w", err)
 		}
 		if err := os.Rename(stagingDir, patch.Dir(name)); err != nil {
-			os.Rename(trashDir, patch.Dir(name))
+			_ = os.Rename(trashDir, patch.Dir(name))
 			os.RemoveAll(stagingDir)
 			return fmt.Errorf("swap: %w", err)
 		}
