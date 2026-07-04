@@ -7,7 +7,9 @@
 /vendor/
 /go/pkg/
 *.sum
+!go.sum
 go.work
+cpm
 
 # OS
 .DS_Store
@@ -19,3 +21,7 @@ Thumbs.db
 *.swp
 *.swo
 bin/
+
+# Editor backups & trailing-space typos
+* 2.*
+* 2/

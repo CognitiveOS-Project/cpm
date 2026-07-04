@@ -16,10 +16,17 @@ type Manifest struct {
 	Description         string             `json:"description"`
 	Author              string             `json:"author,omitempty"`
 	License             string             `json:"license,omitempty"`
+	Source              *SourceInfo        `json:"source,omitempty"`
 	Dependencies        map[string]string  `json:"dependencies,omitempty"`
 	HardwareRequirements *HardwareReq      `json:"hardware_requirements,omitempty"`
 	Brain               *BrainConfig       `json:"brain,omitempty"`
 	Runtime             *RuntimeConfig     `json:"runtime,omitempty"`
+}
+
+type SourceInfo struct {
+	Repository string `json:"repository"`
+	Issues     string `json:"issues"`
+	IssuesAPI  string `json:"issues_api,omitempty"`
 }
 
 type HardwareReq struct {

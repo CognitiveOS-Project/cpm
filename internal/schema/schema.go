@@ -20,7 +20,7 @@ func init() {
 	}
 
 	compiler := jsonschema.NewCompiler()
-	compiler.AddResource("https://cognitive-os.org/schemas/cognitive.schema.json", doc)
+	_ = compiler.AddResource("https://cognitive-os.org/schemas/cognitive.schema.json", doc)
 
 	sch, err := compiler.Compile("https://cognitive-os.org/schemas/cognitive.schema.json")
 	if err != nil {

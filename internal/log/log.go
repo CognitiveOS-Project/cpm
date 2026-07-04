@@ -36,3 +36,7 @@ func Warn(format string, args ...interface{}) {
 func Error(format string, args ...interface{}) {
 	fmt.Fprintf(output, "ERROR[%s] %s\n", time.Now().Format(time.RFC3339), fmt.Sprintf(format, args...))
 }
+
+func Audit(eventType string, details map[string]interface{}) {
+	Info("audit event=%s details=%v", eventType, details)
+}

@@ -47,6 +47,29 @@ export CPM_PATCHES_DIR=/tmp/cpm-test/patches
 export CPM_CACHE_DIR=/tmp/cpm-test/cache
 ```
 
+## Related
+
+- [CognitiveOS](https://github.com/CognitiveOS-Project/cognitiveos) — main project repository
+- [cognitive-os.org](https://cognitive-os.org) — project website
+- [Registry Server](https://github.com/CognitiveOS-Project/registry-server) — .cgp package registry
+- [cgp-template](https://github.com/CognitiveOS-Project/cgp-template) — .cgp package boilerplate
+- [Product Specs](https://github.com/CognitiveOS-Project/product-specs) — .cgp format specification
+- [CognitiveOS Project](https://github.com/CognitiveOS-Project) — GitHub organization
+
+## Contributing
+
+1. Branch from `development`, not `main`
+2. Use topic branches: `feature/<name>`, `fix/<name>`, `bugfix/<name>`
+3. Open a PR to `development` with a clear title and description
+4. Merge via squash after review
+5. Changes flow to `main` via a release PR
+
+See the [SDLC repo](https://github.com/CognitiveOS-Project/sdlc) for the full contribution guide, code review standards, and testing strategy.
+
+## Author
+
+**Jean Machuca** — [GitHub](https://github.com/jeanmachuca) · [Sponsor](https://github.com/sponsors/jeanmachuca)
+
 ## License
 
 MIT
