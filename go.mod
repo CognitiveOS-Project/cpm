@@ -3,9 +3,9 @@ module github.com/CognitiveOS-Project/cpm
 go 1.23.4
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.2
-	gopkg.in/ini.v1 v1.67.3
 )
 
 require (

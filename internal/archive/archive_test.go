@@ -24,12 +24,12 @@ func TestReadManifest(t *testing.T) {
 	}
 
 	b, _ := json.Marshal(manifest)
-	tw.WriteHeader(&tar.Header{
+	_ = tw.WriteHeader(&tar.Header{
 		Name: "cognitive.json",
 		Mode: 0644,
 		Size: int64(len(b)),
 	})
-	tw.Write(b)
+	_, _ = tw.Write(b)
 	tw.Close()
 	gz.Close()
 
@@ -54,12 +54,12 @@ func TestReadManifest_WithDotSlash(t *testing.T) {
 	}
 
 	b, _ := json.Marshal(manifest)
-	tw.WriteHeader(&tar.Header{
+	_ = tw.WriteHeader(&tar.Header{
 		Name: "./cognitive.json",
 		Mode: 0644,
 		Size: int64(len(b)),
 	})
-	tw.Write(b)
+	_, _ = tw.Write(b)
 	tw.Close()
 	gz.Close()
 
@@ -80,12 +80,12 @@ func TestExtract(t *testing.T) {
 	tw := tar.NewWriter(gz)
 
 	content := []byte("hello world")
-	tw.WriteHeader(&tar.Header{
+	_ = tw.WriteHeader(&tar.Header{
 		Name: "tools/test.sh",
 		Mode: 0755,
 		Size: int64(len(content)),
 	})
-	tw.Write(content)
+	_, _ = tw.Write(content)
 	tw.Close()
 	gz.Close()
 
@@ -109,7 +109,7 @@ func TestExtract_TraversalProtection(t *testing.T) {
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
 
-	tw.WriteHeader(&tar.Header{
+	_ = tw.WriteHeader(&tar.Header{
 		Name: "../../etc/passwd",
 		Mode: 0644,
 		Size: 0,
