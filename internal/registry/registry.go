@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -104,4 +105,42 @@ func (c *Client) Download(name, version string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("registry: %s", string(body))
 	}
 	return resp.Body, nil
+}
+
+type PublishRequest struct {
+	Name             string   `json:"name"`
+	Version          string   `json:"version"`
+	Description      string   `json:"description"`
+	Author           string   `json:"author,omitempty"`
+	SourceRepository string   `json:"source_repository,omitempty"`
+	SourceIssues     string   `json:"source_issues,omitempty"`
+	DownloadURL      string   `json:"download_url,omitempty"`
+	SHA256           string   `json:"sha256,omitempty"`
+	Tags             []string `json:"tags,omitempty"`
+}
+
+func (c *Client) Publish(token string, req PublishRequest) error {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("encode: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.BaseURL+"/patches", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTP.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("network: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("registry: %s", string(respBody))
+	}
+	return nil
 }
