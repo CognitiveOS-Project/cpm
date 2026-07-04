@@ -52,7 +52,7 @@ func init() {
 	fs.StringVar(&searchLicense, "license", "", "Filter by SPDX license")
 	fs.IntVar(&searchMinRAM, "min-ram", 0, "Minimum RAM in MB")
 	fs.IntVar(&searchPage, "page", 1, "Page number")
-	searchCmd.RegisterFlagCompletionFunc("license", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	_ = searchCmd.RegisterFlagCompletionFunc("license", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"MIT", "Apache-2.0", "GPL-3.0", "BSL-1.0"}, cobra.ShellCompDirectiveDefault
 	})
 	rootCmd.AddCommand(searchCmd)
