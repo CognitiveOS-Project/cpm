@@ -16,9 +16,7 @@ import (
 var updateCmd = &cobra.Command{
 	Use:   "update <name>",
 	Short: "Update a patch to the latest version",
-	Long: `Update a patch by checking all configured registries (primary, mirrors, alternatives)
-for the latest version.`,
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		if !patch.IsInstalled(name) {
@@ -30,39 +28,29 @@ for the latest version.`,
 			return fmt.Errorf("read current manifest: %w", err)
 		}
 
-		// Check all registries for latest version
-		regs := resolveConfig()
-		entries := regs.All()
-
-		var latestMeta *registry.PatchMetadata
-
-		for _, entry := range entries {
-			rc := registry.New(entry.URL)
-			meta, err := rc.GetMetadata(name, "")
-			if err != nil {
-				continue
-			}
-			if meta.Version != current.Version {
-				latestMeta = meta
-				break
-			}
+		regURL := resolveRegistry()
+		if regURL == "" {
+			return fmt.Errorf("no registry configured")
 		}
 
-		if latestMeta == nil {
+		rc := registry.New(regURL)
+		meta, err := rc.GetMetadata(name, "")
+		if err != nil {
+			return fmt.Errorf("resolve from registry: %w", err)
+		}
+
+		if meta.Version == current.Version {
 			fmt.Printf("%s v%s is already the latest version\n", name, current.Version)
 			return nil
 		}
 
-		// Download from the primary registry
-		regURL := resolveRegistry()
-		rc := registry.New(regURL)
-
+		// Download to staging
 		cacheDir := cacheDir()
 		_ = os.MkdirAll(cacheDir, 0755)
-		cachePath := filepath.Join(cacheDir, name+"-"+latestMeta.Version+".cgp")
+		cachePath := filepath.Join(cacheDir, name+"-"+meta.Version+".cgp")
 
 		if _, err := os.Stat(cachePath); os.IsNotExist(err) {
-			body, err := rc.Download(latestMeta.Name, latestMeta.Version)
+			body, err := rc.Download(meta.Name, meta.Version)
 			if err != nil {
 				return fmt.Errorf("download: %w", err)
 			}
@@ -99,14 +87,14 @@ for the latest version.`,
 			return fmt.Errorf("swap: %w", err)
 		}
 		if err := os.Rename(stagingDir, patch.Dir(name)); err != nil {
-			os.Rename(trashDir, patch.Dir(name))
+			_ = os.Rename(trashDir, patch.Dir(name))
 			os.RemoveAll(stagingDir)
 			return fmt.Errorf("swap: %w", err)
 		}
 		os.RemoveAll(trashDir)
 
-		log.Info("Updated %s: %s → %s", name, current.Version, latestMeta.Version)
-		fmt.Printf("✓ Updated %s: %s → %s\n", name, current.Version, latestMeta.Version)
+		log.Info("Updated %s: %s → %s", name, current.Version, meta.Version)
+		fmt.Printf("✓ Updated %s: %s → %s\n", name, current.Version, meta.Version)
 		return nil
 	},
 }
