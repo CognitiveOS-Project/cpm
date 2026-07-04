@@ -19,7 +19,7 @@ func TestLoadDefaultsWhenNoFile(t *testing.T) {
 func TestLoadFromFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "registries.toml")
-	os.WriteFile(path, []byte(`
+	_ = os.WriteFile(path, []byte(`
 [official]
 primary = "https://registry-us-all-distros-official.cognitive-os.org/v1"
 
@@ -76,7 +76,7 @@ func TestResolve(t *testing.T) {
 func TestResolveCustom(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "registries.toml")
-	os.WriteFile(path, []byte(`
+	_ = os.WriteFile(path, []byte(`
 [official]
 primary = "https://primary.example.com/v1"
 

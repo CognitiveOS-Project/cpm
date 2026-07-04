@@ -9,7 +9,7 @@ import (
 func TestOfFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.bin")
-	os.WriteFile(path, []byte("hello world"), 0644)
+	_ = os.WriteFile(path, []byte("hello world"), 0644)
 
 	sum, err := OfFile(path)
 	if err != nil {
@@ -23,7 +23,7 @@ func TestOfFile(t *testing.T) {
 func TestVerify(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.bin")
-	os.WriteFile(path, []byte("data"), 0644)
+	_ = os.WriteFile(path, []byte("data"), 0644)
 
 	sum, _ := OfFile(path)
 	if err := Verify(path, sum); err != nil {
