@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/CognitiveOS-Project/cpm/internal/audit"
 	"github.com/CognitiveOS-Project/cpm/internal/check"
@@ -12,6 +15,7 @@ import (
 	"github.com/CognitiveOS-Project/cpm/internal/patch"
 	"github.com/CognitiveOS-Project/cpm/internal/resolver"
 	"github.com/CognitiveOS-Project/cpm/internal/schema"
+	"github.com/CognitiveOS-Project/cpm/internal/weights"
 	"github.com/spf13/cobra"
 )
 
@@ -95,6 +99,11 @@ Sources include:
 			}
 		}
 
+		// Remote weight download — check manifest for weights.remote.source
+		if err := downloadRemoteWeights(result.DataDir); err != nil {
+			return fmt.Errorf("download weights: %w", err)
+		}
+
 		// Move extracted data to install path
 		installPath := patch.Dir(m.Name)
 		_ = os.RemoveAll(installPath)
@@ -163,6 +172,112 @@ func isURL(s string) bool {
 
 func defaultPrimary() string {
 	return "https://registry-us-all-distros-official.cognitive-os.org/v1"
+}
+
+func downloadRemoteWeights(dataDir string) error {
+	raw, err := os.ReadFile(filepath.Join(dataDir, "cognitive.json"))
+	if err != nil {
+		return nil
+	}
+
+	var doc map[string]interface{}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil
+	}
+
+	brain, _ := doc["brain"].(map[string]interface{})
+	if brain == nil {
+		return nil
+	}
+
+	var downloadErr error
+
+	downloadIfRemote := func(kind weights.Kind, kindKey string) {
+		modelCfg, _ := brain[kindKey].(map[string]interface{})
+		if modelCfg == nil {
+			return
+		}
+		weightsCfg, _ := modelCfg["weights"].(map[string]interface{})
+		if weightsCfg == nil {
+			return
+		}
+		remote, _ := weightsCfg["remote"].(map[string]interface{})
+		if remote == nil {
+			return
+		}
+
+		source, _ := remote["source"].(string)
+		if source != "huggingface" {
+			return
+		}
+
+		modelID, _ := remote["model_id"].(string)
+		if modelID == "" {
+			downloadErr = fmt.Errorf("%s.weights.remote.model_id is required", kindKey)
+			return
+		}
+
+		filename, _ := remote["filename"].(string)
+		expectedSHA256, _ := remote["sha256"].(string)
+		if expectedSHA256 == "" {
+			if checksum, ok := doc["checksum"].(map[string]interface{}); ok {
+				expectedSHA256, _ = checksum["sha256"].(string)
+			}
+		}
+
+		ctx := context.Background()
+		prov := weights.NewHFProvider()
+
+		candidates, err := prov.Search(ctx, modelID, 3)
+		if err != nil {
+			downloadErr = fmt.Errorf("search %s: %w", modelID, err)
+			return
+		}
+
+		var match *weights.Candidate
+		for i := range candidates {
+			if filename != "" && candidates[i].Filename == filename {
+				match = &candidates[i]
+				break
+			}
+		}
+		if match == nil {
+			for i := range candidates {
+				if strings.Contains(strings.ToLower(candidates[i].Filename), strings.ToLower(filename)) {
+					match = &candidates[i]
+					break
+				}
+			}
+		}
+		if match == nil && len(candidates) > 0 {
+			match = &candidates[0]
+		}
+		if match == nil {
+			downloadErr = fmt.Errorf("no matching file found for %s", modelID)
+			return
+		}
+
+		dest := resolveDest(kind, match)
+
+		if kind == weights.KindRaw {
+			if _, err := os.Stat(dest); err == nil {
+				log.Info("Raw model already exists at %s — skipping", dest)
+				return
+			}
+		}
+
+		log.Info("Downloading weights from %s", match.DownloadURL)
+		if err := weights.Download(ctx, match.DownloadURL, dest, expectedSHA256, weights.TextProgress); err != nil {
+			downloadErr = fmt.Errorf("download %s: %w", modelID, err)
+			return
+		}
+		log.Info("Downloaded weights to %s", dest)
+	}
+
+	downloadIfRemote(weights.KindRaw, "raw_model")
+	downloadIfRemote(weights.KindWide, "wide_model")
+
+	return downloadErr
 }
 
 func copyDir(src, dst string) error {
