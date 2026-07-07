@@ -25,3 +25,4 @@ bin/
 # Editor backups & trailing-space typos
 * 2.*
 * 2/
+build/

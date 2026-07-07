@@ -5,8 +5,10 @@
 ## Build
 
 ```bash
-export PATH="/tmp/go/bin:$(go env GOPATH)/bin:$PATH"
-go build -o bin/cpm ./cmd/cpm
+make build    # compile to build/bin/cpm
+make test     # run tests
+make lint     # go vet
+make clean    # remove build artifacts
 ```
 
 ## Commands
