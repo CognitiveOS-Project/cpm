@@ -21,6 +21,7 @@ type Manifest struct {
 	HardwareRequirements *HardwareReq      `json:"hardware_requirements,omitempty"`
 	Brain               *BrainConfig       `json:"brain,omitempty"`
 	Runtime             *RuntimeConfig     `json:"runtime,omitempty"`
+	Training            *TrainingConfig    `json:"training,omitempty"`
 	Checksum            *ChecksumInfo      `json:"checksum,omitempty"`
 }
 
@@ -87,6 +88,24 @@ type RuntimeConfig struct {
 	MCPServers   []MCPServer  `json:"mcp_servers,omitempty"`
 	Background   bool         `json:"background,omitempty"`
 	Capabilities []string     `json:"capabilities,omitempty"`
+}
+
+type TrainingConfig struct {
+	Tool             string            `json:"tool,omitempty"`
+	Hyperparameters  *TrainingParams   `json:"hyperparameters,omitempty"`
+	DataRequirements *TrainingDataReqs `json:"data_requirements,omitempty"`
+	OutputPath       string            `json:"output_path,omitempty"`
+}
+
+type TrainingParams struct {
+	Rank         int     `json:"rank,omitempty"`
+	Alpha        float64 `json:"alpha,omitempty"`
+	Epochs       int     `json:"epochs,omitempty"`
+	LearningRate float64 `json:"learning_rate,omitempty"`
+}
+
+type TrainingDataReqs struct {
+	MinSamples int `json:"min_samples,omitempty"`
 }
 
 type MCPServer struct {
