@@ -152,13 +152,6 @@ func buildSchemaDoc(m *archive.Manifest) map[string]interface{} {
 	return doc
 }
 
-func cacheDir() string {
-	if d := os.Getenv("CPM_CACHE_DIR"); d != "" {
-		return d
-	}
-	return "/cognitiveos/data/cache/downloads"
-}
-
 func resolveRegistry() string {
 	if registryURL != "" {
 		if isURL(registryURL) {

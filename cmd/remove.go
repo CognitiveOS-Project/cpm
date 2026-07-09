@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/CognitiveOS-Project/cpm/internal/dep"
 	"github.com/CognitiveOS-Project/cpm/internal/log"
@@ -27,7 +28,10 @@ var removeCmd = &cobra.Command{
 		if !yesMode {
 			fmt.Printf("Remove %s? [y/N]: ", name)
 			var confirm string
-			fmt.Scanln(&confirm)
+			if _, err := fmt.Scanln(&confirm); err != nil && err != io.EOF {
+				fmt.Printf("Error reading confirmation: %v\n", err)
+				return nil
+			}
 			if confirm != "y" && confirm != "Y" && confirm != "yes" {
 				fmt.Println("Cancelled")
 				return nil

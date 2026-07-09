@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -29,7 +30,10 @@ var updateCmd = &cobra.Command{
 		if !yesMode {
 			fmt.Printf("Update %s from v%s to latest? [y/N]: ", name, current.Version)
 			var confirm string
-			fmt.Scanln(&confirm)
+			if _, err := fmt.Scanln(&confirm); err != nil && err != io.EOF {
+				fmt.Printf("Error reading confirmation: %v\n", err)
+				return nil
+			}
 			if confirm != "y" && confirm != "Y" && confirm != "yes" {
 				fmt.Println("Cancelled")
 				return nil
