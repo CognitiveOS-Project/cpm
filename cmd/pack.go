@@ -68,7 +68,9 @@ This tool generates the required cognitive.json manifest with OS and Architectur
 				if err := copyFile(src, dst); err != nil {
 					return fmt.Errorf("failed to copy binary %s: %w", entry.Name(), err)
 				}
-				os.Chmod(dst, 0755)
+				if err := os.Chmod(dst, 0755); err != nil {
+					return fmt.Errorf("failed to chmod binary %s: %w", entry.Name(), err)
+				}
 			}
 		} else {
 			// Package a single binary
@@ -76,7 +78,9 @@ This tool generates the required cognitive.json manifest with OS and Architectur
 			if err := copyFile(packBin, destBin); err != nil {
 				return fmt.Errorf("failed to copy binary: %w", err)
 			}
-			os.Chmod(destBin, 0755)
+			if err := os.Chmod(destBin, 0755); err != nil {
+				return fmt.Errorf("failed to chmod binary: %w", err)
+			}
 		}
 
 		// 4. Generate Manifest
