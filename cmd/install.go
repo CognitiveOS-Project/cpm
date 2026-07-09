@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/CognitiveOS-Project/cpm/internal/archive"
 	"github.com/CognitiveOS-Project/cpm/internal/audit"
 	"github.com/CognitiveOS-Project/cpm/internal/check"
 	"github.com/CognitiveOS-Project/cpm/internal/config"
@@ -39,102 +40,116 @@ Sources include:
 
 		if patch.IsInstalled(target) {
 			log.Error("Patch %q is already installed", target)
-			return fmt.Errorf("already installed")
+			return fmt.Errorf("ERROR:I001: patch %q is already installed", target)
 		}
 
-		// Determine source via universal protocol resolver
 		regURL := resolveRegistry()
-		result, err := resolver.Resolve(target, regURL)
-		if err != nil {
-			return fmt.Errorf("resolve %q: %w", target, err)
-		}
-
-		m := result.Manifest
-
-		// Validate schema
-		doc := map[string]interface{}{
-			"name":        m.Name,
-			"version":     m.Version,
-			"description": m.Description,
-		}
-		if m.Author != "" {
-			doc["author"] = m.Author
-		}
-		if m.License != "" {
-			doc["license"] = m.License
-		}
-		if err := schema.Validate(doc); err != nil {
-			return fmt.Errorf("validation: %w", err)
-		}
-
-		// Hardware audit
-		if !noAudit {
-			res, err := audit.Run()
-			if err != nil {
-				log.Warn("Hardware audit failed: %v", err)
-			} else if err := audit.Check(m.HardwareRequirements, res); err != nil {
-				return fmt.Errorf("hardware: %w", err)
-			}
-		}
-
-		// Source validation — check issues URL reachability
-		if m.Source != nil {
-			if m.Source.Issues != "" {
-				if err := check.IssuesReachable(m.Source.Issues); err != nil {
-					log.Warn("Source issues URL: %v", err)
-				}
-			}
-
-			result, err := check.CheckForBugs(m.Source)
-			if err != nil {
-				return fmt.Errorf("bug check: %w", err)
-			}
-			if result.HasBugs {
-				log.Audit("known_bugs", map[string]interface{}{
-					"name":  m.Name,
-					"count": result.Count,
-					"urls":  result.URLs,
-				})
-				return fmt.Errorf("refusing to install %q — %d open bug(s) found", m.Name, result.Count)
-			}
-		}
-
-		// Remote weight download — check manifest for weights.remote.source
-		if err := downloadRemoteWeights(result.DataDir); err != nil {
-			return fmt.Errorf("download weights: %w", err)
-		}
-
-		// Move extracted data to install path
-		installPath := patch.Dir(m.Name)
-		_ = os.RemoveAll(installPath)
-		if err := os.MkdirAll(filepath.Dir(installPath), 0755); err != nil {
-			_ = os.RemoveAll(result.DataDir)
-			return fmt.Errorf("create parent dir: %w", err)
-		}
-
-		if err := os.Rename(result.DataDir, installPath); err != nil {
-			// Fallback: copy across filesystems
-			if err := copyDir(result.DataDir, installPath); err != nil {
-				_ = os.RemoveAll(installPath)
-				_ = os.RemoveAll(result.DataDir)
-				return fmt.Errorf("extract: %w", err)
-			}
-			_ = os.RemoveAll(result.DataDir)
-		}
-
-		// Log checksum for audit trail
-		if result.Checksum != "" {
-			log.Audit("checksum", map[string]interface{}{
-				"name":     m.Name,
-				"version":  m.Version,
-				"checksum": result.Checksum,
-			})
-		}
-
-		log.Info("Installed %s v%s", m.Name, m.Version)
-		fmt.Printf("✓ Installed %s v%s\n", m.Name, m.Version)
-		return nil
+		return installWithDeps(target, regURL)
 	},
+}
+
+func installWithDeps(target, regURL string) error {
+	result, err := resolver.Resolve(target, regURL)
+	if err != nil {
+		return fmt.Errorf("resolve %q: %w", target, err)
+	}
+
+	m := result.Manifest
+
+	doc := buildSchemaDoc(m)
+	if err := schema.Validate(doc); err != nil {
+		return fmt.Errorf("ERROR:I002: schema validation: %w", err)
+	}
+
+	if len(m.Dependencies) > 0 {
+		regURL := resolveRegistry()
+		for depName := range m.Dependencies {
+			if patch.IsInstalled(depName) {
+				continue
+			}
+			log.Info("Installing dependency %s for %s", depName, m.Name)
+			if err := installWithDeps(depName, regURL); err != nil {
+				return fmt.Errorf("ERROR:I003: dependency %s: %w", depName, err)
+			}
+		}
+	}
+
+	if !noAudit {
+		res, err := audit.Run()
+		if err != nil {
+			log.Warn("Hardware audit failed: %v", err)
+		} else if err := audit.Check(m.HardwareRequirements, res); err != nil {
+			return fmt.Errorf("ERROR:I004: hardware: %w", err)
+		}
+	}
+
+	if m.Source != nil {
+		if m.Source.Issues != "" {
+			if err := check.IssuesReachable(m.Source.Issues); err != nil {
+				log.Warn("Source issues URL: %v", err)
+			}
+		}
+
+		bugResult, err := check.CheckForBugs(m.Source)
+		if err != nil {
+			return fmt.Errorf("ERROR:I005: bug check: %w", err)
+		}
+		if bugResult.HasBugs {
+			log.Audit("known_bugs", map[string]interface{}{
+				"name":  m.Name,
+				"count": bugResult.Count,
+				"urls":  bugResult.URLs,
+			})
+			return fmt.Errorf("ERROR:I006: refusing to install %q — %d open bug(s) found", m.Name, bugResult.Count)
+		}
+	}
+
+	if err := downloadRemoteWeights(result.DataDir); err != nil {
+		return fmt.Errorf("ERROR:I007: download weights: %w", err)
+	}
+
+	installPath := patch.Dir(m.Name)
+	_ = os.RemoveAll(installPath)
+	if err := os.MkdirAll(filepath.Dir(installPath), 0755); err != nil {
+		_ = os.RemoveAll(result.DataDir)
+		return fmt.Errorf("ERROR:I008: create parent dir: %w", err)
+	}
+
+	if err := os.Rename(result.DataDir, installPath); err != nil {
+		if err := copyDir(result.DataDir, installPath); err != nil {
+			_ = os.RemoveAll(installPath)
+			_ = os.RemoveAll(result.DataDir)
+			return fmt.Errorf("ERROR:I009: extract: %w", err)
+		}
+		_ = os.RemoveAll(result.DataDir)
+	}
+
+	if result.Checksum != "" {
+		log.Audit("checksum", map[string]interface{}{
+			"name":     m.Name,
+			"version":  m.Version,
+			"checksum": result.Checksum,
+		})
+	}
+
+	log.Info("Installed %s v%s", m.Name, m.Version)
+	fmt.Printf("✓ Installed %s v%s\n", m.Name, m.Version)
+	return nil
+}
+
+func buildSchemaDoc(m *archive.Manifest) map[string]interface{} {
+	doc := map[string]interface{}{
+		"name":        m.Name,
+		"version":     m.Version,
+		"description": m.Description,
+	}
+	if m.Author != "" {
+		doc["author"] = m.Author
+	}
+	if m.License != "" {
+		doc["license"] = m.License
+	}
+	return doc
 }
 
 func cacheDir() string {

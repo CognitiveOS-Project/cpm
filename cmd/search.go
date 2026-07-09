@@ -29,7 +29,13 @@ var searchCmd = &cobra.Command{
 		}
 
 		rc := registry.New(regURL)
-		results, err := rc.Search(query, searchPage, 20)
+		opts := registry.SearchOptions{
+			License: searchLicense,
+			MinRAM:  searchMinRAM,
+			Page:    searchPage,
+			PerPage: 20,
+		}
+		results, err := rc.Search(query, opts)
 		if err != nil {
 			return fmt.Errorf("search failed: %w", err)
 		}

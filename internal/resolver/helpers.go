@@ -65,6 +65,35 @@ func downloadArchive(url string) (string, string, error) {
 	return archivePath, sum, nil
 }
 
+func downloadFromReader(r io.ReadCloser, nameHint string) (string, string, error) {
+	defer r.Close()
+	name := sanitize(nameHint)
+	if name == "" || name == "." {
+		name = "archive"
+	}
+	archivePath := filepath.Join(os.TempDir(), fmt.Sprintf("cpm-dl-%s", name))
+
+	f, err := os.Create(archivePath)
+	if err != nil {
+		return "", "", fmt.Errorf("create temp file: %w", err)
+	}
+
+	if _, err := io.Copy(f, r); err != nil {
+		f.Close()
+		os.Remove(archivePath)
+		return "", "", fmt.Errorf("write archive: %w", err)
+	}
+	f.Close()
+
+	sum, err := checksum.OfFile(archivePath)
+	if err != nil {
+		os.Remove(archivePath)
+		return "", "", err
+	}
+
+	return archivePath, sum, nil
+}
+
 func normalizeArchive(archivePath, checksum string) (*Result, error) {
 	nr, err := normalize.Archive(archivePath)
 	if err != nil {
