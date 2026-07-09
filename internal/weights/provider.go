@@ -48,5 +48,5 @@ type Candidate struct {
 
 type Provider interface {
 	Name() string
-	Search(ctx context.Context, query string, limit int) ([]Candidate, error)
+	Search(ctx context.Context, query string, limit int, format Format) ([]Candidate, error)
 }

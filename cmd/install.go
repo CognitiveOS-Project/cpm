@@ -243,7 +243,7 @@ func downloadRemoteWeights(dataDir string) error {
 		ctx := context.Background()
 		prov := weights.NewHFProvider()
 
-		candidates, err := prov.Search(ctx, modelID, 3)
+		candidates, err := prov.Search(ctx, modelID, 3, weights.FormatGGUF)
 		if err != nil {
 			downloadErr = fmt.Errorf("search %s: %w", modelID, err)
 			return

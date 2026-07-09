@@ -18,6 +18,7 @@ type hfModel struct {
 
 type hfSibling struct {
 	RFilename string `json:"rfilename"`
+	Size      int64  `json:"size"`
 }
 
 type HFProvider struct {
@@ -30,9 +31,14 @@ func NewHFProvider() *HFProvider {
 
 func (p *HFProvider) Name() string { return "hf" }
 
-func (p *HFProvider) Search(ctx context.Context, query string, limit int) ([]Candidate, error) {
+func (p *HFProvider) Search(ctx context.Context, query string, limit int, format Format) ([]Candidate, error) {
+	libraryFilter := "gguf"
+	if format == FormatSafeTensors {
+		libraryFilter = "safetensors"
+	}
 	apiURL := fmt.Sprintf(
-		"https://huggingface.co/api/models?library=gguf&search=%s&sort=downloads&direction=-1&limit=%d&full=true",
+		"https://huggingface.co/api/models?library=%s&search=%s&sort=downloads&direction=-1&limit=%d&full=true",
+		libraryFilter,
 		url.QueryEscape(query),
 		limit,
 	)
@@ -76,6 +82,7 @@ func (p *HFProvider) Search(ctx context.Context, query string, limit int) ([]Can
 				ModelID:     modelID,
 				Filename:    file.RFilename,
 				DownloadURL: fmt.Sprintf("https://huggingface.co/%s/resolve/main/%s", modelID, file.RFilename),
+				SizeBytes:   file.Size,
 			})
 		}
 	}
