@@ -194,15 +194,28 @@ func (c *Client) Unlock(name, version, code string) error {
 	return nil
 }
 
-func (c *Client) Download(name, version string) (io.ReadCloser, error) {
-	u := c.BaseURL + "/patches/" + name + "/" + version + "/download"
+type DownloadOptions struct {
+	OS   string
+	Arch string
+}
 
-	req, err := http.NewRequest("GET", u, nil)
+func (c *Client) Download(name, version string, opts DownloadOptions) (io.ReadCloser, error) {
+	u, _ := url.Parse(c.BaseURL + "/patches/" + name + "/" + version + "/download")
+	q := u.Query()
+	if opts.OS != "" {
+		q.Set("os", opts.OS)
+	}
+	if opts.Arch != "" {
+		q.Set("arch", opts.Arch)
+	}
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("User-Agent", "cpm/1.0")
-
+	
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {

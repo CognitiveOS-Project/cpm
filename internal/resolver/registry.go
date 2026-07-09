@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/CognitiveOS-Project/cpm/internal/registry"
 )
@@ -18,6 +19,11 @@ func resolveRegistry(target, registryURL string) (*Result, error) {
 		return nil, fmt.Errorf("package %s is %s (not active)", target, meta.Status)
 	}
 
+	opts := registry.DownloadOptions{
+		OS:   runtime.GOOS,
+		Arch: runtime.GOARCH,
+	}
+
 	if meta.DownloadURL != "" {
 		archivePath, sum, err := downloadArchive(meta.DownloadURL)
 		if err != nil {
@@ -31,7 +37,7 @@ func resolveRegistry(target, registryURL string) (*Result, error) {
 		return normalizeArchive(archivePath, sum)
 	}
 
-	body, err := rc.Download(target, meta.Version)
+	body, err := rc.Download(target, meta.Version, opts)
 	if err != nil {
 		return nil, fmt.Errorf("download %s: %w", target, err)
 	}

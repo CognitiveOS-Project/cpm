@@ -13,6 +13,8 @@ import (
 )
 
 type Result struct {
+	OS                 string
+	Arch               string
 	AvailableRAMMB     int
 	AvailableStorageMB int64
 	NPUAvailable       bool
@@ -21,6 +23,8 @@ type Result struct {
 
 func Run() (*Result, error) {
 	r := &Result{}
+	r.OS = runtime.GOOS
+	r.Arch = runtime.GOARCH
 	r.AvailableRAMMB = readMemInfo()
 	storagePath := "/cognitiveos"
 	if d := os.Getenv("CPM_PATCHES_DIR"); d != "" {
@@ -36,6 +40,33 @@ func Check(req *archive.HardwareReq, res *Result) error {
 	if req == nil {
 		return nil
 	}
+
+	if len(req.OS) > 0 {
+		supported := false
+		for _, os := range req.OS {
+			if os == res.OS {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return fmt.Errorf("unsupported OS: requires one of %v, current is %s", req.OS, res.OS)
+		}
+	}
+
+	if len(req.Arch) > 0 {
+		supported := false
+		for _, arch := range req.Arch {
+			if arch == res.Arch {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return fmt.Errorf("unsupported architecture: requires one of %v, current is %s", req.Arch, res.Arch)
+		}
+	}
+
 	if req.MinRAMMB > 0 && res.AvailableRAMMB < req.MinRAMMB {
 		return fmt.Errorf("requires %d MB RAM, available %d MB", req.MinRAMMB, res.AvailableRAMMB)
 	}
