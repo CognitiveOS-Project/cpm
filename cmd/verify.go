@@ -22,14 +22,13 @@ var verifyCmd = &cobra.Command{
 		path := args[0]
 		f, err := os.Open(path)
 		if err != nil {
-			return fmt.Errorf("open: %w", err)
+			return fmt.Errorf("ERROR:V001: open: %w", err)
 		}
 		defer f.Close()
 
-		// Check tar.gz format
 		gzr, err := gzip.NewReader(f)
 		if err != nil {
-			return fmt.Errorf("invalid gzip: %w", err)
+			return fmt.Errorf("ERROR:V002: invalid gzip: %w", err)
 		}
 		defer gzr.Close()
 
@@ -44,38 +43,36 @@ var verifyCmd = &cobra.Command{
 				break
 			}
 			if err != nil {
-				return fmt.Errorf("invalid tar: %w", err)
+				return fmt.Errorf("ERROR:V003: invalid tar: %w", err)
 			}
 
 			name := filepath.Clean(hdr.Name)
-		if name == "cognitive.json" {
+			if name == "cognitive.json" {
 				foundManifest = true
 				if err := json.NewDecoder(tr).Decode(manifest); err != nil {
-					return fmt.Errorf("invalid cognitive.json: %w", err)
+					return fmt.Errorf("ERROR:V004: invalid cognitive.json: %w", err)
 				}
 			}
 			referencedFiles[name] = true
 		}
 
 		if !foundManifest {
-			return fmt.Errorf("cognitive.json not found in archive")
+			return fmt.Errorf("ERROR:V005: cognitive.json not found in archive")
 		}
 
-		// Validate schema
 		doc := map[string]interface{}{
 			"name":        manifest.Name,
 			"version":     manifest.Version,
 			"description": manifest.Description,
 		}
 		if err := schema.Validate(doc); err != nil {
-			return fmt.Errorf("schema violation: %w", err)
+			return fmt.Errorf("ERROR:V006: schema violation: %w", err)
 		}
 
-		// Check referenced files exist
 		if manifest.Runtime != nil {
 			if manifest.Runtime.SystemPrompt != "" {
 				if !referencedFiles[manifest.Runtime.SystemPrompt] {
-					return fmt.Errorf("missing file: %s", manifest.Runtime.SystemPrompt)
+					return fmt.Errorf("ERROR:V007: missing file: %s", manifest.Runtime.SystemPrompt)
 				}
 			}
 			for _, srv := range manifest.Runtime.MCPServers {
@@ -84,7 +81,24 @@ var verifyCmd = &cobra.Command{
 					cmdPath = filepath.Join("tools", cmdPath)
 				}
 				if !referencedFiles[cmdPath] {
-					return fmt.Errorf("missing MCP server binary: %s", srv.Command)
+					return fmt.Errorf("ERROR:V008: missing MCP server binary: %s", srv.Command)
+				}
+			}
+		}
+
+		if manifest.Brain != nil {
+			if manifest.Brain.Adapter != "" {
+				if !referencedFiles[manifest.Brain.Adapter] {
+					return fmt.Errorf("ERROR:V009: missing adapter file: %s", manifest.Brain.Adapter)
+				}
+			}
+		}
+
+		if manifest.Dependencies != nil {
+			for depName := range manifest.Dependencies {
+				depDir := filepath.Join("deps", depName)
+				if !referencedFiles[depDir] && !referencedFiles[depDir+"/"] {
+					fmt.Printf("  Note: dependency %s not bundled in archive (will be resolved at install)\n", depName)
 				}
 			}
 		}

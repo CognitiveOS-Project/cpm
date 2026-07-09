@@ -45,10 +45,12 @@ type DependencyTree struct {
 }
 
 type SearchOptions struct {
-	License string
-	MinRAM  int
-	Page    int
-	PerPage int
+	License    string
+	MinRAM     int
+	Page       int
+	PerPage    int
+	Capability string
+	Exact      bool
 }
 
 type Client struct {
@@ -80,6 +82,12 @@ func (c *Client) Search(query string, opts SearchOptions) (*SearchResult, error)
 	}
 	if opts.MinRAM > 0 {
 		q.Set("min_ram_mb", fmt.Sprintf("%d", opts.MinRAM))
+	}
+	if opts.Capability != "" {
+		q.Set("capability", opts.Capability)
+	}
+	if opts.Exact {
+		q.Set("exact", "true")
 	}
 	u.RawQuery = q.Encode()
 

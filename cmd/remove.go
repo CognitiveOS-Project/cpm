@@ -16,16 +16,26 @@ var removeCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		if !patch.IsInstalled(name) {
-			return fmt.Errorf("patch %q is not installed", name)
+			return fmt.Errorf("ERROR:RM001: patch %q is not installed", name)
 		}
 
 		deps := dep.CheckDependents(name)
 		if len(deps) > 0 {
-			return fmt.Errorf("cannot remove %q: %v depends on it", name, deps)
+			return fmt.Errorf("ERROR:RM002: cannot remove %q: %v depends on it", name, deps)
+		}
+
+		if !yesMode {
+			fmt.Printf("Remove %s? [y/N]: ", name)
+			var confirm string
+			fmt.Scanln(&confirm)
+			if confirm != "y" && confirm != "Y" && confirm != "yes" {
+				fmt.Println("Cancelled")
+				return nil
+			}
 		}
 
 		if err := patch.Remove(name); err != nil {
-			return fmt.Errorf("remove: %w", err)
+			return fmt.Errorf("ERROR:RM003: remove: %w", err)
 		}
 		log.Info("Removed %s", name)
 		fmt.Printf("✓ Removed %s\n", name)

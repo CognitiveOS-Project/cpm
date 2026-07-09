@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/CognitiveOS-Project/cpm/internal/patch"
+	"github.com/CognitiveOS-Project/cpm/internal/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +18,7 @@ var infoCmd = &cobra.Command{
 		name := args[0]
 		m, err := patch.ReadManifest(name)
 		if err != nil {
-			return fmt.Errorf("patch %q not found: %w", name, err)
+			return fmt.Errorf("ERROR:INFO001: patch %q not found: %w", name, err)
 		}
 
 		fmt.Printf("Name:           %s\n", m.Name)
@@ -44,6 +45,15 @@ var infoCmd = &cobra.Command{
 			fmt.Println("Dependencies:   (none)")
 		}
 
+		if m.Source != nil {
+			if m.Source.Repository != "" {
+				fmt.Printf("Repository:     %s\n", m.Source.Repository)
+			}
+			if m.Source.Issues != "" {
+				fmt.Printf("Issues:         %s\n", m.Source.Issues)
+			}
+		}
+
 		if m.Runtime != nil {
 			for _, s := range m.Runtime.MCPServers {
 				fmt.Printf("MCP servers:    %s (%s)\n", s.Name, s.Transport)
@@ -51,6 +61,13 @@ var infoCmd = &cobra.Command{
 			if m.Runtime.Background {
 				fmt.Println("Background:     yes")
 			}
+			if len(m.Runtime.Capabilities) > 0 {
+				fmt.Printf("Capabilities:   %v\n", m.Runtime.Capabilities)
+			}
+		}
+
+		if m.Checksum != nil && m.Checksum.SHA256 != "" {
+			fmt.Printf("SHA-256:        %s\n", m.Checksum.SHA256)
 		}
 
 		installedPath := filepath.Join(patch.PatchesDir, name)
@@ -58,6 +75,20 @@ var infoCmd = &cobra.Command{
 			fmt.Printf("Installed:      %s\n", installedPath)
 			fmt.Printf("Size:           %d MB\n", dirSize(installedPath)/(1024*1024))
 		}
+
+		regURL := resolveRegistry()
+		if regURL != "" {
+			rc := registry.New(regURL)
+			meta, err := rc.GetMetadata(name, "")
+			if err == nil {
+				fmt.Printf("Registry:       %s\n", regURL)
+				fmt.Printf("Latest:         %s\n", meta.Version)
+				if meta.Status != "" {
+					fmt.Printf("Status:         %s\n", meta.Status)
+				}
+			}
+		}
+
 		return nil
 	},
 }

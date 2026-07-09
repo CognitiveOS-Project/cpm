@@ -21,6 +21,11 @@ type Manifest struct {
 	HardwareRequirements *HardwareReq      `json:"hardware_requirements,omitempty"`
 	Brain               *BrainConfig       `json:"brain,omitempty"`
 	Runtime             *RuntimeConfig     `json:"runtime,omitempty"`
+	Checksum            *ChecksumInfo      `json:"checksum,omitempty"`
+}
+
+type ChecksumInfo struct {
+	SHA256 string `json:"sha256,omitempty"`
 }
 
 type SourceInfo struct {
@@ -36,8 +41,42 @@ type HardwareReq struct {
 }
 
 type BrainConfig struct {
-	BaseModel string `json:"base_model,omitempty"`
-	Adapter   string `json:"adapter,omitempty"`
+	BaseModel string        `json:"base_model,omitempty"`
+	Adapter   string        `json:"adapter,omitempty"`
+	RawModel  *ModelConfig  `json:"raw_model,omitempty"`
+	WideModel *ModelConfig  `json:"wide_model,omitempty"`
+}
+
+type ModelConfig struct {
+	BaseModel  string              `json:"base_model,omitempty"`
+	Adapter    string              `json:"adapter,omitempty"`
+	Weights    *WeightsConfig      `json:"weights,omitempty"`
+	Parameters *BrainParameters    `json:"parameters,omitempty"`
+	Routing    []RoutingHint       `json:"routing,omitempty"`
+}
+
+type WeightsConfig struct {
+	Remote *RemoteWeights `json:"remote,omitempty"`
+}
+
+type RemoteWeights struct {
+	Source   string `json:"source,omitempty"`
+	ModelID  string `json:"model_id,omitempty"`
+	URL      string `json:"url,omitempty"`
+	Filename string `json:"filename,omitempty"`
+	Format   string `json:"format,omitempty"`
+	Quant    string `json:"quant,omitempty"`
+	SHA256   string `json:"sha256,omitempty"`
+}
+
+type BrainParameters struct {
+	Temperature float64 `json:"temperature,omitempty"`
+	NumCtx      int     `json:"num_ctx,omitempty"`
+}
+
+type RoutingHint struct {
+	Capability string `json:"capability,omitempty"`
+	Priority   int    `json:"priority,omitempty"`
 }
 
 type RuntimeConfig struct {
@@ -45,6 +84,7 @@ type RuntimeConfig struct {
 	ToolsRoot    string       `json:"tools_root,omitempty"`
 	MCPServers   []MCPServer  `json:"mcp_servers,omitempty"`
 	Background   bool         `json:"background,omitempty"`
+	Capabilities []string     `json:"capabilities,omitempty"`
 }
 
 type MCPServer struct {
