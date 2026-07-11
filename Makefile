@@ -7,9 +7,13 @@ BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 GO := go
 
-.PHONY: build test lint clean
-
+.PHONY: build test lint clean build-dependencies
+ 
+build-dependencies:
+	@echo "No external dependencies for cpm"
+ 
 build: $(BIN_DIR)/cpm
+
 
 $(BIN_DIR)/cpm:
 	@mkdir -p $(BIN_DIR)
