@@ -176,7 +176,9 @@ func Verify(path string) error {
 		return fmt.Errorf("ERROR:V005: cognitive.json not found in archive")
 	}
 
-	f.Seek(0, io.SeekStart)
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("ERROR:V001: seek: %w", err)
+	}
 	gzr2, err := gzip.NewReader(f)
 	if err != nil {
 		return fmt.Errorf("ERROR:V002: invalid gzip: %w", err)
