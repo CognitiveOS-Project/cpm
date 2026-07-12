@@ -10,6 +10,19 @@ import (
 	"path/filepath"
 )
 
+type SystemDependency struct {
+	Name        string `json:"name"`
+	Manager     string `json:"manager"`
+	Stage       string `json:"stage"` // build, boot, install, runtime
+	Required    bool   `json:"required"`
+	Version     string `json:"version,omitempty"` // semver or "latest"
+	Description string `json:"description,omitempty"`
+}
+
+type HardwareDependencies struct {
+	Packages []SystemDependency `json:"packages,omitempty"`
+}
+
 type Manifest struct {
 	Name                string             `json:"name"`
 	Version             string             `json:"version"`
@@ -19,6 +32,7 @@ type Manifest struct {
 	Source              *SourceInfo        `json:"source,omitempty"`
 	Dependencies        map[string]string  `json:"dependencies,omitempty"`
 	HardwareRequirements *HardwareReq      `json:"hardware_requirements,omitempty"`
+	HardwareDependencies *HardwareDependencies `json:"hardware_dependencies,omitempty"`
 	Brain               *BrainConfig       `json:"brain,omitempty"`
 	Runtime             *RuntimeConfig     `json:"runtime,omitempty"`
 	Training            *TrainingConfig    `json:"training,omitempty"`
@@ -122,7 +136,7 @@ func ReadManifest(r io.Reader) (*Manifest, error) {
 		return nil, fmt.Errorf("gzip: %w", err)
 	}
 	defer gzr.Close()
-
+	
 	tr := tar.NewReader(gzr)
 	for {
 		hdr, err := tr.Next()
@@ -143,7 +157,20 @@ func ReadManifest(r io.Reader) (*Manifest, error) {
 	return nil, fmt.Errorf("cognitive.json not found in archive")
 }
 
+func LoadManifest(path string) (*Manifest, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read manifest %s: %w", path, err)
+	}
+	var m Manifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("unmarshal manifest %s: %w", path, err)
+	}
+	return &m, nil
+}
+
 func Extract(r io.Reader, dest string) error {
+
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
 		return fmt.Errorf("gzip: %w", err)

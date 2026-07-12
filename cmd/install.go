@@ -13,10 +13,13 @@ import (
 	"github.com/CognitiveOS-Project/cpm/internal/check"
 	"github.com/CognitiveOS-Project/cpm/internal/config"
 	"github.com/CognitiveOS-Project/cpm/internal/log"
+	"github.com/CognitiveOS-Project/cpm/internal/manager"
 	"github.com/CognitiveOS-Project/cpm/internal/patch"
+	"github.com/CognitiveOS-Project/cpm/internal/queue"
 	"github.com/CognitiveOS-Project/cpm/internal/resolver"
 	"github.com/CognitiveOS-Project/cpm/internal/schema"
 	"github.com/CognitiveOS-Project/cpm/internal/weights"
+
 	"github.com/spf13/cobra"
 )
 
@@ -71,6 +74,24 @@ func installWithDeps(target, regURL string) error {
 			if err := installWithDeps(depName, regURL); err != nil {
 				return fmt.Errorf("ERROR:I003: dependency %s: %w", depName, err)
 			}
+		}
+	}
+
+	// Step 3.5: Register and Install system dependencies
+	if m.HardwareDependencies != nil && len(m.HardwareDependencies.Packages) > 0 {
+		// 1. Register all system dependencies in the queue
+		for _, dep := range m.HardwareDependencies.Packages {
+			if err := queue.Register("/", m.Name, m.Version, dep); err != nil {
+				return fmt.Errorf("ERROR:I010: register dependency %s: %w", dep.Name, err)
+			}
+		}
+		log.Info("Registered %d system dependencies for %s", len(m.HardwareDependencies.Packages), m.Name)
+
+		// 2. Immediately install dependencies for the 'install' stage
+		if err := installDependenciesForStage("/", "install"); err != nil {
+			// Rollback: remove registered queue files for this patch
+			_ = queue.RemoveByPatch("/", m.Name, m.Version)
+			return fmt.Errorf("ERROR:I011: install system dependencies: %w", err)
 		}
 	}
 
@@ -172,6 +193,27 @@ func resolveRegistry() string {
 		return defaultPrimary()
 	}
 	return cfg.Official.Primary
+}
+
+func installDependenciesForStage(root, stage string) error {
+	entries, err := queue.ListByStage(root, stage)
+	if err != nil {
+		return fmt.Errorf("list queue for stage %s: %w", stage, err)
+	}
+
+	for _, entry := range entries {
+		log.Info("Installing system dependency %s for %s...", entry.Dependency.Name, entry.PatchName)
+		if err := manager.Install(root, entry.Dependency); err != nil {
+			if entry.Dependency.Required {
+				return fmt.Errorf("required dependency %s failed: %w", entry.Dependency.Name, err)
+			}
+			log.Warn("Optional dependency %s failed: %v", entry.Dependency.Name, err)
+		}
+		if err := queue.MarkInstalled(root, stage, entry.Filename); err != nil {
+			return fmt.Errorf("mark installed %s: %w", entry.Dependency.Name, err)
+		}
+	}
+	return nil
 }
 
 func isURL(s string) bool {
