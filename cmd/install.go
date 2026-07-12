@@ -57,6 +57,11 @@ func installWithDeps(target, regURL string) error {
 		return fmt.Errorf("resolve %q: %w", target, err)
 	}
 
+	if err := archive.VerifyExtracted(result.DataDir); err != nil {
+		_ = os.RemoveAll(result.DataDir)
+		return fmt.Errorf("verify: %w", err)
+	}
+
 	m := result.Manifest
 
 	doc := buildSchemaDoc(m)

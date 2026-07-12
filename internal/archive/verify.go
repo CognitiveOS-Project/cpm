@@ -99,3 +99,52 @@ func Verify(path string) error {
 	fmt.Printf("✓ %s is valid (%s v%s)\n", filepath.Base(path), manifest.Name, manifest.Version)
 	return nil
 }
+
+func VerifyExtracted(dir string) error {
+	cogPath := filepath.Join(dir, "cognitive.json")
+	data, err := os.ReadFile(cogPath)
+	if err != nil {
+		return fmt.Errorf("ERROR:V005: cognitive.json not found in %s", dir)
+	}
+
+	manifest := &Manifest{}
+	if err := json.Unmarshal(data, manifest); err != nil {
+		return fmt.Errorf("ERROR:V004: invalid cognitive.json: %w", err)
+	}
+
+	doc := map[string]interface{}{
+		"name":        manifest.Name,
+		"version":     manifest.Version,
+		"description": manifest.Description,
+	}
+	if err := schema.Validate(doc); err != nil {
+		return fmt.Errorf("ERROR:V006: schema violation: %w", err)
+	}
+
+	if manifest.Runtime != nil {
+		if manifest.Runtime.SystemPrompt != "" {
+			if _, err := os.Stat(filepath.Join(dir, manifest.Runtime.SystemPrompt)); err != nil {
+				return fmt.Errorf("ERROR:V007: missing file: %s", manifest.Runtime.SystemPrompt)
+			}
+		}
+		for _, srv := range manifest.Runtime.MCPServers {
+			cmdPath := srv.Command
+			if !filepath.IsAbs(cmdPath) {
+				cmdPath = filepath.Join("tools", cmdPath)
+			}
+			if _, err := os.Stat(filepath.Join(dir, cmdPath)); err != nil {
+				return fmt.Errorf("ERROR:V008: missing MCP server binary: %s", srv.Command)
+			}
+		}
+	}
+
+	if manifest.Brain != nil {
+		if manifest.Brain.Adapter != "" {
+			if _, err := os.Stat(filepath.Join(dir, manifest.Brain.Adapter)); err != nil {
+				return fmt.Errorf("ERROR:V009: missing adapter file: %s", manifest.Brain.Adapter)
+			}
+		}
+	}
+
+	return nil
+}
