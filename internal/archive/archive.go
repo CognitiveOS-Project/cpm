@@ -50,11 +50,12 @@ type SourceInfo struct {
 }
 
 type HardwareReq struct {
-	OS           []string `json:"os,omitempty"`
-	Arch         []string `json:"arch,omitempty"`
-	MinRAMMB     int      `json:"min_ram_mb,omitempty"`
-	MinStorageMB int      `json:"min_storage_mb,omitempty"`
-	NPURequired  bool     `json:"npu_required,omitempty"`
+	OS             []string `json:"os,omitempty"`
+	Arch           []string `json:"arch,omitempty"`
+	MinRAMMB       int      `json:"min_ram_mb,omitempty"`
+	MinStorageMB   int      `json:"min_storage_mb,omitempty"`
+	NPURequired    bool     `json:"npu_required,omitempty"`
+	RecommendedNPU string   `json:"recommended_npu,omitempty"`
 }
 
 type BrainConfig struct {

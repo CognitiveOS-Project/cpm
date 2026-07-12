@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/CognitiveOS-Project/cpm/internal/archive"
 	"github.com/spf13/cobra"
 )
 
@@ -27,18 +28,16 @@ var packCmd = &cobra.Command{
 	Short: "Package a binary or manifest into a .cgp archive",
 	Long: `Create a .cgp (Cognitive Patch) archive from a compiled binary and/or a cognitive.json manifest.
 If --bin is provided, binaries are copied to tools/ in the archive.
-If --bin is omitted, only the manifest (and any files it references) is packaged.
+If --bin is omitted, only the manifest (and any files it referenced) is packaged.
 Manifest is resolved via --manifest flag or auto-detected from CWD/parent/bin directories.
 After packing, the archive is automatically verified for integrity.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// 1. Prepare Temporary Directory
 		tmpDir, err := os.MkdirTemp("", "cpm-pack-*")
 		if err != nil {
 			return fmt.Errorf("failed to create tmp dir: %w", err)
 		}
 		defer os.RemoveAll(tmpDir)
 
-		// 2. Copy Binary/Binaries (if --bin provided)
 		if packBin != "" {
 			toolsDir := filepath.Join(tmpDir, "tools")
 			if err := os.MkdirAll(toolsDir, 0755); err != nil {
@@ -79,10 +78,8 @@ After packing, the archive is automatically verified for integrity.`,
 			}
 		}
 
-		// 3. Resolve and Merge Manifest
 		manifest, err := loadAndMergeManifests(packBin)
 		if err != nil {
-			// Backward compatibility: if no manifest found, try to generate one from flags
 			if packName == "" || packVersion == "" {
 				return fmt.Errorf("ERROR:P102: no manifest found and --name/--version are required for minimal manifest")
 			}
@@ -113,38 +110,42 @@ After packing, the archive is automatically verified for integrity.`,
 			return fmt.Errorf("failed to write manifest: %w", err)
 		}
 
-		// 4. Create .cgp Archive
-		name, ok := manifest["name"].(string)
-		if !ok {
+		typedManifest, err := archive.LoadManifest(filepath.Join(tmpDir, "cognitive.json"))
+		if err != nil {
+			return fmt.Errorf("failed to parse manifest: %w", err)
+		}
+
+		if typedManifest.Name == "" {
 			return fmt.Errorf("manifest missing required field: name")
 		}
-		version, ok := manifest["version"].(string)
-		if !ok {
+		if typedManifest.Version == "" {
 			return fmt.Errorf("manifest missing required field: version")
 		}
 
-		outputName := fmt.Sprintf("%s-%s", name, version)
-		hwReqs, ok := manifest["hardware_requirements"].(map[string]interface{})
-		if ok {
-			osVal, okOS := hwReqs["os"].([]string)
-			archVal, okArch := hwReqs["arch"].([]string)
-			if okOS && len(osVal) > 0 && okArch && len(archVal) > 0 {
-				outputName = fmt.Sprintf("%s-%s-%s-%s", name, version, osVal[0], archVal[0])
+		outputName := fmt.Sprintf("%s-%s", typedManifest.Name, typedManifest.Version)
+		if typedManifest.HardwareRequirements != nil {
+			osVal := typedManifest.HardwareRequirements.OS
+			archVal := typedManifest.HardwareRequirements.Arch
+			if len(osVal) > 0 && len(archVal) > 0 {
+				outputName = fmt.Sprintf("%s-%s-%s-%s", typedManifest.Name, typedManifest.Version, osVal[0], archVal[0])
 			}
 		}
-		if outputName == fmt.Sprintf("%s-%s", name, version) {
-			if hwReqs == nil {
+		if outputName == fmt.Sprintf("%s-%s", typedManifest.Name, typedManifest.Version) {
+			if typedManifest.HardwareRequirements == nil {
 				outputName += "-universal"
 			}
 		}
 		outputFile := outputName + ".cgp"
 
+		if err := copyManifestFiles(tmpDir, typedManifest); err != nil {
+			return fmt.Errorf("failed to include manifest files: %w", err)
+		}
+
 		if err := createCgp(tmpDir, outputFile); err != nil {
 			return fmt.Errorf("failed to create archive: %w", err)
 		}
 
-		// 5. Auto-Verify
-		if err := verifyCgp(outputFile); err != nil {
+		if err := archive.Verify(outputFile); err != nil {
 			_ = os.Remove(outputFile)
 			return fmt.Errorf("verification failed: %w", err)
 		}
@@ -157,6 +158,74 @@ After packing, the archive is automatically verified for integrity.`,
 		return nil
 	},
 
+}
+
+func collectManifestRefs(m *archive.Manifest) []string {
+	var refs []string
+
+	if m.Runtime != nil {
+		if m.Runtime.SystemPrompt != "" {
+			refs = append(refs, m.Runtime.SystemPrompt)
+		}
+		for _, srv := range m.Runtime.MCPServers {
+			if srv.Command != "" && !filepath.IsAbs(srv.Command) {
+				refs = append(refs, filepath.Join("tools", srv.Command))
+			}
+		}
+	}
+	if m.Brain != nil {
+		if m.Brain.Adapter != "" {
+			refs = append(refs, m.Brain.Adapter)
+		}
+		if m.Brain.RawModel != nil && m.Brain.RawModel.Weights != nil && m.Brain.RawModel.Weights.Remote != nil {
+			if f := m.Brain.RawModel.Weights.Remote.Filename; f != "" {
+				refs = append(refs, filepath.Join("weights", f))
+			}
+		}
+		if m.Brain.WideModel != nil && m.Brain.WideModel.Weights != nil && m.Brain.WideModel.Weights.Remote != nil {
+			if f := m.Brain.WideModel.Weights.Remote.Filename; f != "" {
+				refs = append(refs, filepath.Join("weights", f))
+			}
+		}
+	}
+
+	seen := map[string]bool{}
+	var unique []string
+	for _, r := range refs {
+		if !seen[r] {
+			seen[r] = true
+			unique = append(unique, r)
+		}
+	}
+	return unique
+}
+
+func copyManifestFiles(tmpDir string, m *archive.Manifest) error {
+	refs := collectManifestRefs(m)
+	cwd, _ := os.Getwd()
+
+	for _, ref := range refs {
+		if filepath.IsAbs(ref) {
+			continue
+		}
+
+		src := filepath.Join(cwd, ref)
+		dst := filepath.Join(tmpDir, ref)
+
+		if _, err := os.Stat(src); err != nil {
+			fmt.Printf("  Warning: referenced file %s not found, skipping\n", ref)
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			return fmt.Errorf("create dir for %s: %w", ref, err)
+		}
+		if err := copyFile(src, dst); err != nil {
+			return fmt.Errorf("copy %s: %w", ref, err)
+		}
+	}
+
+	return nil
 }
 
 func loadAndMergeManifests(binPath string) (map[string]interface{}, error) {
@@ -272,87 +341,9 @@ func init() {
 	fs.StringVar(&packBin, "bin", "", "Path to the binary to package")
 	fs.StringVar(&packName, "name", "", "Package name")
 	fs.StringVar(&packVersion, "version", "", "Package version")
-	fs.StringVar(&packOS, "os", "linux", "Target OS")
-	fs.StringVar(&packArch, "arch", "amd64", "Target Architecture")
+	fs.StringVar(&packOS, "os", "", "Target OS")
+	fs.StringVar(&packArch, "arch", "", "Target Architecture")
 	fs.StringVar(&packDescription, "description", "", "Package description")
 	fs.StringVar(&packManifest, "manifest", "", "Path to cognitive.json manifest file")
 	rootCmd.AddCommand(packCmd)
-}
-
-func verifyCgp(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("open: %w", err)
-	}
-	defer f.Close()
-
-	gzr, err := gzip.NewReader(f)
-	if err != nil {
-		return fmt.Errorf("invalid gzip: %w", err)
-	}
-	defer gzr.Close()
-
-	tr := tar.NewReader(gzr)
-	foundManifest := false
-	referencedFiles := map[string]bool{}
-	var manifest map[string]interface{}
-
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("invalid tar: %w", err)
-		}
-
-		name := filepath.Clean(hdr.Name)
-		if name == "cognitive.json" {
-			foundManifest = true
-			if err := json.NewDecoder(tr).Decode(&manifest); err != nil {
-				return fmt.Errorf("invalid cognitive.json: %w", err)
-			}
-		}
-		referencedFiles[name] = true
-	}
-
-	if !foundManifest {
-		return fmt.Errorf("cognitive.json not found in archive")
-	}
-
-	if _, ok := manifest["name"].(string); !ok {
-		return fmt.Errorf("missing required field: name")
-	}
-	if _, ok := manifest["version"].(string); !ok {
-		return fmt.Errorf("missing required field: version")
-	}
-
-	if runtime, ok := manifest["runtime"].(map[string]interface{}); ok {
-		if prompt, ok := runtime["system_prompt"].(string); ok && prompt != "" {
-			if !referencedFiles[prompt] {
-				return fmt.Errorf("missing file: %s", prompt)
-			}
-		}
-		if servers, ok := runtime["mcp_servers"].([]interface{}); ok {
-			for _, s := range servers {
-				srv, ok := s.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				cmd, ok := srv["command"].(string)
-				if !ok || cmd == "" {
-					continue
-				}
-				cmdPath := cmd
-				if !filepath.IsAbs(cmdPath) {
-					cmdPath = filepath.Join("tools", cmdPath)
-				}
-				if !referencedFiles[cmdPath] {
-					return fmt.Errorf("missing MCP server binary: %s", cmd)
-				}
-			}
-		}
-	}
-
-	return nil
 }
