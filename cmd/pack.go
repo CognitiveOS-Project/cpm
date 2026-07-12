@@ -19,19 +19,17 @@ var (
 	packOS          string
 	packArch        string
 	packDescription string
+	packManifest    string
 )
 
 var packCmd = &cobra.Command{
 	Use:   "pack --bin <path>",
 	Short: "Package a binary into a .cgp archive",
 	Long: `Create a .cgp (Cognitive Patch) archive from a compiled binary.
-This tool generates the required cognitive.json manifest with OS and Architecture constraints.`,
+This tool allows using a cognitive.json manifest file for detailed configuration.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if packBin == "" {
 			return fmt.Errorf("ERROR:P101: --bin is required")
-		}
-		if packName == "" || packVersion == "" {
-			return fmt.Errorf("ERROR:P102: --name and --version are required")
 		}
 
 		// 1. Prepare Temporary Directory
@@ -83,25 +81,31 @@ This tool generates the required cognitive.json manifest with OS and Architectur
 			}
 		}
 
-		// 4. Generate Manifest
-		hwReqs := make(map[string]interface{})
-		if packOS != "" {
-			hwReqs["os"] = []string{packOS}
-		}
-		if packArch != "" {
-			hwReqs["arch"] = []string{packArch}
-		}
+		// 4. Resolve and Merge Manifest
+		manifest, err := loadAndMergeManifests(packBin)
+		if err != nil {
+			// Backward compatibility: if no manifest found, try to generate one from flags
+			if packName == "" || packVersion == "" {
+				return fmt.Errorf("ERROR:P102: no manifest found and --name/--version are required for minimal manifest")
+			}
 
-		manifest := map[string]interface{}{
-			"name":        packName,
-			"version":     packVersion,
-			"description": packDescription,
-		}
+			hwReqs := make(map[string]interface{})
+			if packOS != "" {
+				hwReqs["os"] = []string{packOS}
+			}
+			if packArch != "" {
+				hwReqs["arch"] = []string{packArch}
+			}
 
-		if len(hwReqs) > 0 {
-			manifest["hardware_requirements"] = hwReqs
+			manifest = map[string]interface{}{
+				"name":        packName,
+				"version":     packVersion,
+				"description": packDescription,
+			}
+			if len(hwReqs) > 0 {
+				manifest["hardware_requirements"] = hwReqs
+			}
 		}
-
 
 		manifestData, err := json.MarshalIndent(manifest, "", "  ")
 		if err != nil {
@@ -112,11 +116,30 @@ This tool generates the required cognitive.json manifest with OS and Architectur
 		}
 
 		// 5. Create .cgp Archive
-		outputName := fmt.Sprintf("%s-%s", packName, packVersion)
-		if packOS != "" && packArch != "" {
-			outputName = fmt.Sprintf("%s-%s-%s-%s", packName, packVersion, packOS, packArch)
-		} else if packOS == "" && packArch == "" {
-			outputName += "-universal"
+		name, ok := manifest["name"].(string)
+		if !ok {
+			return fmt.Errorf("manifest missing required field: name")
+		}
+		version, ok := manifest["version"].(string)
+		if !ok {
+			return fmt.Errorf("manifest missing required field: version")
+		}
+
+		outputName := fmt.Sprintf("%s-%s", name, version)
+		hwReqs, ok := manifest["hardware_requirements"].(map[string]interface{})
+		if ok {
+			osVal, okOS := hwReqs["os"].([]string)
+			archVal, okArch := hwReqs["arch"].([]string)
+			if okOS && len(osVal) > 0 && okArch && len(archVal) > 0 {
+				outputName = fmt.Sprintf("%s-%s-%s-%s", name, version, osVal[0], archVal[0])
+			}
+		}
+		if outputName == fmt.Sprintf("%s-%s", name, version) {
+			// If not specific os/arch, check if we should use -universal
+			// For simplicity, if we didn't match os/arch pattern, we use universal if no constraints
+			if hwReqs == nil {
+				outputName += "-universal"
+			}
 		}
 		outputFile := outputName + ".cgp"
 
@@ -127,6 +150,48 @@ This tool generates the required cognitive.json manifest with OS and Architectur
 		fmt.Printf("✓ Packaged %s as %s\n", packBin, outputFile)
 		return nil
 	},
+}
+
+func loadAndMergeManifests(binPath string) (map[string]interface{}, error) {
+	cwd, _ := os.Getwd()
+	searchPaths := []string{
+		filepath.Join(cwd, "cognitive.json"),
+		filepath.Join(filepath.Dir(binPath), "cognitive.json"),
+		filepath.Join(binPath, "cognitive.json"),
+	}
+
+	merged := make(map[string]interface{})
+	found := false
+
+	for _, path := range searchPaths {
+		if data, err := os.ReadFile(path); err == nil {
+			var m map[string]interface{}
+			if err := json.Unmarshal(data, &m); err == nil {
+				for k, v := range m {
+					merged[k] = v
+				}
+				found = true
+			}
+		}
+	}
+
+	if packManifest != "" {
+		if data, err := os.ReadFile(packManifest); err == nil {
+			var m map[string]interface{}
+			if err := json.Unmarshal(data, &m); err == nil {
+				for k, v := range m {
+					merged[k] = v
+				}
+				found = true
+			}
+		}
+	}
+
+	if !found {
+		return nil, fmt.Errorf("no manifest found")
+	}
+
+	return merged, nil
 }
 
 func copyFile(src, dst string) error {
@@ -201,5 +266,6 @@ func init() {
 	fs.StringVar(&packOS, "os", "linux", "Target OS")
 	fs.StringVar(&packArch, "arch", "amd64", "Target Architecture")
 	fs.StringVar(&packDescription, "description", "", "Package description")
+	fs.StringVar(&packManifest, "manifest", "", "Path to cognitive.json manifest file")
 	rootCmd.AddCommand(packCmd)
 }
