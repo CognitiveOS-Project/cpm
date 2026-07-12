@@ -23,15 +23,14 @@ var (
 )
 
 var packCmd = &cobra.Command{
-	Use:   "pack --bin <path>",
-	Short: "Package a binary into a .cgp archive",
-	Long: `Create a .cgp (Cognitive Patch) archive from a compiled binary.
-This tool allows using a cognitive.json manifest file for detailed configuration.`,
+	Use:   "pack [--bin <path>] [--manifest <path>]",
+	Short: "Package a binary or manifest into a .cgp archive",
+	Long: `Create a .cgp (Cognitive Patch) archive from a compiled binary and/or a cognitive.json manifest.
+If --bin is provided, binaries are copied to tools/ in the archive.
+If --bin is omitted, only the manifest (and any files it references) is packaged.
+Manifest is resolved via --manifest flag or auto-detected from CWD/parent/bin directories.
+After packing, the archive is automatically verified for integrity.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if packBin == "" {
-			return fmt.Errorf("ERROR:P101: --bin is required")
-		}
-
 		// 1. Prepare Temporary Directory
 		tmpDir, err := os.MkdirTemp("", "cpm-pack-*")
 		if err != nil {
@@ -39,49 +38,48 @@ This tool allows using a cognitive.json manifest file for detailed configuration
 		}
 		defer os.RemoveAll(tmpDir)
 
-		// 2. Create Directory Structure
-		toolsDir := filepath.Join(tmpDir, "tools")
-		if err := os.MkdirAll(toolsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create tools dir: %w", err)
-		}
+		// 2. Copy Binary/Binaries (if --bin provided)
+		if packBin != "" {
+			toolsDir := filepath.Join(tmpDir, "tools")
+			if err := os.MkdirAll(toolsDir, 0755); err != nil {
+				return fmt.Errorf("failed to create tools dir: %w", err)
+			}
 
-		// 3. Copy Binary/Binaries
-		info, err := os.Stat(packBin)
-		if err != nil {
-			return fmt.Errorf("failed to stat bin: %w", err)
-		}
-
-		if info.IsDir() {
-			// Package all binaries in the directory
-			entries, err := os.ReadDir(packBin)
+			info, err := os.Stat(packBin)
 			if err != nil {
-				return fmt.Errorf("failed to read bin dir: %w", err)
+				return fmt.Errorf("failed to stat bin: %w", err)
 			}
-			for _, entry := range entries {
-				if entry.IsDir() {
-					continue
+
+			if info.IsDir() {
+				entries, err := os.ReadDir(packBin)
+				if err != nil {
+					return fmt.Errorf("failed to read bin dir: %w", err)
 				}
-				src := filepath.Join(packBin, entry.Name())
-				dst := filepath.Join(toolsDir, entry.Name())
-				if err := copyFile(src, dst); err != nil {
-					return fmt.Errorf("failed to copy binary %s: %w", entry.Name(), err)
+				for _, entry := range entries {
+					if entry.IsDir() {
+						continue
+					}
+					src := filepath.Join(packBin, entry.Name())
+					dst := filepath.Join(toolsDir, entry.Name())
+					if err := copyFile(src, dst); err != nil {
+						return fmt.Errorf("failed to copy binary %s: %w", entry.Name(), err)
+					}
+					if err := os.Chmod(dst, 0755); err != nil {
+						return fmt.Errorf("failed to chmod binary %s: %w", entry.Name(), err)
+					}
 				}
-				if err := os.Chmod(dst, 0755); err != nil {
-					return fmt.Errorf("failed to chmod binary %s: %w", entry.Name(), err)
+			} else {
+				destBin := filepath.Join(toolsDir, filepath.Base(packBin))
+				if err := copyFile(packBin, destBin); err != nil {
+					return fmt.Errorf("failed to copy binary: %w", err)
 				}
-			}
-		} else {
-			// Package a single binary
-			destBin := filepath.Join(toolsDir, filepath.Base(packBin))
-			if err := copyFile(packBin, destBin); err != nil {
-				return fmt.Errorf("failed to copy binary: %w", err)
-			}
-			if err := os.Chmod(destBin, 0755); err != nil {
-				return fmt.Errorf("failed to chmod binary: %w", err)
+				if err := os.Chmod(destBin, 0755); err != nil {
+					return fmt.Errorf("failed to chmod binary: %w", err)
+				}
 			}
 		}
 
-		// 4. Resolve and Merge Manifest
+		// 3. Resolve and Merge Manifest
 		manifest, err := loadAndMergeManifests(packBin)
 		if err != nil {
 			// Backward compatibility: if no manifest found, try to generate one from flags
@@ -115,7 +113,7 @@ This tool allows using a cognitive.json manifest file for detailed configuration
 			return fmt.Errorf("failed to write manifest: %w", err)
 		}
 
-		// 5. Create .cgp Archive
+		// 4. Create .cgp Archive
 		name, ok := manifest["name"].(string)
 		if !ok {
 			return fmt.Errorf("manifest missing required field: name")
@@ -135,8 +133,6 @@ This tool allows using a cognitive.json manifest file for detailed configuration
 			}
 		}
 		if outputName == fmt.Sprintf("%s-%s", name, version) {
-			// If not specific os/arch, check if we should use -universal
-			// For simplicity, if we didn't match os/arch pattern, we use universal if no constraints
 			if hwReqs == nil {
 				outputName += "-universal"
 			}
@@ -147,17 +143,30 @@ This tool allows using a cognitive.json manifest file for detailed configuration
 			return fmt.Errorf("failed to create archive: %w", err)
 		}
 
-		fmt.Printf("✓ Packaged %s as %s\n", packBin, outputFile)
+		// 5. Auto-Verify
+		if err := verifyCgp(outputFile); err != nil {
+			_ = os.Remove(outputFile)
+			return fmt.Errorf("verification failed: %w", err)
+		}
+
+		msg := fmt.Sprintf("✓ Packaged %s as %s", packBin, outputFile)
+		if packBin == "" {
+			msg = fmt.Sprintf("✓ Packaged manifest as %s", outputFile)
+		}
+		fmt.Println(msg)
 		return nil
 	},
+
 }
 
 func loadAndMergeManifests(binPath string) (map[string]interface{}, error) {
 	cwd, _ := os.Getwd()
 	searchPaths := []string{
 		filepath.Join(cwd, "cognitive.json"),
-		filepath.Join(filepath.Dir(binPath), "cognitive.json"),
-		filepath.Join(binPath, "cognitive.json"),
+	}
+	if binPath != "" {
+		searchPaths = append(searchPaths, filepath.Join(filepath.Dir(binPath), "cognitive.json"))
+		searchPaths = append(searchPaths, filepath.Join(binPath, "cognitive.json"))
 	}
 
 	merged := make(map[string]interface{})
@@ -268,4 +277,82 @@ func init() {
 	fs.StringVar(&packDescription, "description", "", "Package description")
 	fs.StringVar(&packManifest, "manifest", "", "Path to cognitive.json manifest file")
 	rootCmd.AddCommand(packCmd)
+}
+
+func verifyCgp(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer f.Close()
+
+	gzr, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("invalid gzip: %w", err)
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+	foundManifest := false
+	referencedFiles := map[string]bool{}
+	var manifest map[string]interface{}
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("invalid tar: %w", err)
+		}
+
+		name := filepath.Clean(hdr.Name)
+		if name == "cognitive.json" {
+			foundManifest = true
+			if err := json.NewDecoder(tr).Decode(&manifest); err != nil {
+				return fmt.Errorf("invalid cognitive.json: %w", err)
+			}
+		}
+		referencedFiles[name] = true
+	}
+
+	if !foundManifest {
+		return fmt.Errorf("cognitive.json not found in archive")
+	}
+
+	if _, ok := manifest["name"].(string); !ok {
+		return fmt.Errorf("missing required field: name")
+	}
+	if _, ok := manifest["version"].(string); !ok {
+		return fmt.Errorf("missing required field: version")
+	}
+
+	if runtime, ok := manifest["runtime"].(map[string]interface{}); ok {
+		if prompt, ok := runtime["system_prompt"].(string); ok && prompt != "" {
+			if !referencedFiles[prompt] {
+				return fmt.Errorf("missing file: %s", prompt)
+			}
+		}
+		if servers, ok := runtime["mcp_servers"].([]interface{}); ok {
+			for _, s := range servers {
+				srv, ok := s.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				cmd, ok := srv["command"].(string)
+				if !ok || cmd == "" {
+					continue
+				}
+				cmdPath := cmd
+				if !filepath.IsAbs(cmdPath) {
+					cmdPath = filepath.Join("tools", cmdPath)
+				}
+				if !referencedFiles[cmdPath] {
+					return fmt.Errorf("missing MCP server binary: %s", cmd)
+				}
+			}
+		}
+	}
+
+	return nil
 }
