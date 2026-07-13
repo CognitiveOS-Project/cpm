@@ -20,7 +20,7 @@ func TestPackCmd(t *testing.T) {
 			name: "pack single binary",
 			args: []string{"--bin", "testbin"},
 			setup: func(tmpDir string) error {
-				os.WriteFile(filepath.Join(tmpDir, "testbin"), []byte("#!/bin/sh\necho 1\n"), 0755)
+				_ = os.WriteFile(filepath.Join(tmpDir, "testbin"), []byte("#!/bin/sh\necho 1\n"), 0755)
 				return writeTestManifest(tmpDir, map[string]interface{}{
 					"name": "test-pack", "version": "1.0.0",
 				})
@@ -31,9 +31,9 @@ func TestPackCmd(t *testing.T) {
 			name: "pack binary directory",
 			args: []string{"--bin", "bins"},
 			setup: func(tmpDir string) error {
-				os.MkdirAll(filepath.Join(tmpDir, "bins"), 0755)
-				os.WriteFile(filepath.Join(tmpDir, "bins", "tool1"), []byte("#!/bin/sh\necho 1\n"), 0755)
-				os.WriteFile(filepath.Join(tmpDir, "bins", "tool2"), []byte("#!/bin/sh\necho 2\n"), 0755)
+				_ = os.MkdirAll(filepath.Join(tmpDir, "bins"), 0755)
+				_ = os.WriteFile(filepath.Join(tmpDir, "bins", "tool1"), []byte("#!/bin/sh\necho 1\n"), 0755)
+				_ = os.WriteFile(filepath.Join(tmpDir, "bins", "tool2"), []byte("#!/bin/sh\necho 2\n"), 0755)
 				return writeTestManifest(tmpDir, map[string]interface{}{
 					"name": "test-pack-dir", "version": "1.0.0",
 				})
@@ -89,8 +89,8 @@ func TestPackCmd(t *testing.T) {
 			}
 
 			oldWd, _ := os.Getwd()
-			os.Chdir(tmpDir)
-			defer os.Chdir(oldWd)
+			_ = os.Chdir(tmpDir)
+			defer func() { _ = os.Chdir(oldWd) }()
 
 			// Reset flags
 			packBin = ""

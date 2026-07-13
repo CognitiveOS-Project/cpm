@@ -36,25 +36,25 @@ func validateManifest(m *Manifest, fileExists func(string) bool) error {
 	if m.HardwareRequirements != nil {
 		data, _ := json.Marshal(m.HardwareRequirements)
 		var hr interface{}
-		json.Unmarshal(data, &hr)
+		_ = json.Unmarshal(data, &hr)
 		doc["hardware_requirements"] = hr
 	}
 	if m.HardwareDependencies != nil {
 		data, _ := json.Marshal(m.HardwareDependencies)
 		var hd interface{}
-		json.Unmarshal(data, &hd)
+		_ = json.Unmarshal(data, &hd)
 		doc["hardware_dependencies"] = hd
 	}
 	if m.Brain != nil {
 		data, _ := json.Marshal(m.Brain)
 		var b interface{}
-		json.Unmarshal(data, &b)
+		_ = json.Unmarshal(data, &b)
 		doc["brain"] = b
 	}
 	if m.Runtime != nil {
 		data, _ := json.Marshal(m.Runtime)
 		var r interface{}
-		json.Unmarshal(data, &r)
+		_ = json.Unmarshal(data, &r)
 		doc["runtime"] = r
 	}
 	if m.Dependencies != nil {

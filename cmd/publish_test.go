@@ -65,8 +65,8 @@ func createTestCGP(t *testing.T, name, version string) string {
 		Mode: 0644,
 		Size: int64(len(mB)),
 	}
-	tw.WriteHeader(hdr)
-	tw.Write(mB)
+	_ = tw.WriteHeader(hdr)
+	_, _ = tw.Write(mB)
 
 	tw.Close()
 	gw.Close()
@@ -151,7 +151,7 @@ func TestPublishCmd(t *testing.T) {
 
 	t.Run("invalid manifest", func(t *testing.T) {
 		tmpFile := filepath.Join(t.TempDir(), "invalid.cgp")
-		os.WriteFile(tmpFile, []byte("not a gzip"), 0644)
+		_ = os.WriteFile(tmpFile, []byte("not a gzip"), 0644)
 		publishDownloadURL = downloadURL
 		err := publishCmd.RunE(nil, []string{tmpFile})
 		if err == nil || !contains(err.Error(), "ERROR:P002") {

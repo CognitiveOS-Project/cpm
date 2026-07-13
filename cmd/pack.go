@@ -103,9 +103,9 @@ After packing, the archive is automatically verified for integrity.`,
 			// Convert typedManifest back to map[string]interface{} to keep compatibility with loadAndMergeManifests' return type
 			// although we could just change the return type of loadAndMergeManifests to *archive.Manifest.
 			// For now, let's just marshal and unmarshal.
-			data, _ := json.Marshal(typedManifest)
-			manifest = make(map[string]interface{})
-			json.Unmarshal(data, &manifest)
+		data, _ := json.Marshal(typedManifest)
+		manifest = make(map[string]interface{})
+		_ = json.Unmarshal(data, &manifest)
 		}
 
 		manifestData, err := json.MarshalIndent(manifest, "", "  ")

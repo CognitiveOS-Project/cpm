@@ -71,7 +71,7 @@ func TestQueue(t *testing.T) {
 
 	t.Run("RemoveByPatch", func(t *testing.T) {
 		// Register again
-		Register(root, patchName, patchVersion, dep)
+		_ = Register(root, patchName, patchVersion, dep)
 		
 		err := RemoveByPatch(root, patchName, patchVersion)
 		if err != nil {

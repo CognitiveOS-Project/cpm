@@ -87,12 +87,12 @@ func TestInitCmd(t *testing.T) {
 
 			// Change working directory to tmpDir
 			oldWd, _ := os.Getwd()
-			os.Chdir(tmpDir)
-			defer os.Chdir(oldWd)
+			_ = os.Chdir(tmpDir)
+			defer func() { _ = os.Chdir(oldWd) }()
 
 			// If testing "directory already exists", create it first
 			if tc.name == "directory already exists" {
-				os.Mkdir("existing-dir", 0755)
+				_ = os.Mkdir("existing-dir", 0755)
 			}
 
 			// Setup the command
@@ -102,21 +102,12 @@ func TestInitCmd(t *testing.T) {
 			// We need to set up the flags for the command
 			// Since initCmd is already added to rootCmd, we just set the variable
 			
-			// Mock the arguments
-			args := tc.args
-			if tc.template != "" {
-				args = append(args, "--template", tc.template)
-			}
-
 			// Use a helper to execute the command since it's a cobra.Command
 			// We'll call RunE directly to avoid os.Exit or printing to stdout
 			
 			// To use RunE, we need to simulate the Cobra context
-			var runErr error
-			
-			// Since initCmd.RunE is a function, we can call it
-			// But it expects *cobra.Command and []string
-			runErr = initCmd.RunE(cmd, tc.args)
+			runErr := initCmd.RunE(cmd, tc.args)
+
 
 			if (runErr != nil) != tc.wantErr {
 				t.Errorf("initCmd.RunE() error = %v, wantErr %v", runErr, tc.wantErr)
