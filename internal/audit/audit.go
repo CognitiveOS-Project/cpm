@@ -102,7 +102,7 @@ func freeStorage(path string) int64 {
 	if err := syscall.Statfs(path, &stat); err != nil {
 		return 0
 	}
-	return int64(stat.Bavail) * stat.Bsize / (1024 * 1024)
+	return int64(stat.Bavail) * int64(stat.Bsize) / (1024 * 1024)
 }
 
 func hasNPU() bool {
