@@ -12,10 +12,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var publishDownloadURL string
-var publishTags []string
-var publishScope string
-var publishVisibility string
+var (
+	publishDownloadURL string
+	publishTags       []string
+	publishScope      string
+	publishVisibility string
+)
+
+var registryClient registry.Registry
+
+func getRegistryClient() registry.Registry {
+	if registryClient != nil {
+		return registryClient
+	}
+	return registry.New(resolveRegistry())
+}
 
 var publishCmd = &cobra.Command{
 	Use:   "publish <path>",
@@ -56,7 +67,7 @@ Examples:
 		if regURL == "" {
 			return fmt.Errorf("ERROR:P004: no registry configured")
 		}
-		rc := registry.New(regURL)
+		rc := getRegistryClient()
 
 		token := os.Getenv("CPM_REGISTRY_TOKEN")
 		if token == "" {

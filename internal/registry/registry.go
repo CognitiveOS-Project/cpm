@@ -53,6 +53,16 @@ type SearchOptions struct {
 	Exact      bool
 }
 
+type Registry interface {
+	Search(query string, opts SearchOptions) (*SearchResult, error)
+	GetMetadata(name, version string) (*PatchMetadata, error)
+	GetVersions(name string) ([]VersionInfo, error)
+	GetDependencies(name string) (*DependencyTree, error)
+	Unlock(name, version, code string) error
+	Download(name, version string, opts DownloadOptions) (io.ReadCloser, error)
+	Publish(token string, req PublishRequest) error
+}
+
 type Client struct {
 	BaseURL string
 	HTTP    *http.Client
