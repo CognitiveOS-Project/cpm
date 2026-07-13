@@ -84,22 +84,28 @@ After packing, the archive is automatically verified for integrity.`,
 				return fmt.Errorf("ERROR:P102: no manifest found and --name/--version are required for minimal manifest")
 			}
 
-			hwReqs := make(map[string]interface{})
-			if packOS != "" {
-				hwReqs["os"] = []string{packOS}
-			}
-			if packArch != "" {
-				hwReqs["arch"] = []string{packArch}
+			typedManifest := &archive.Manifest{
+				Name:        packName,
+				Version:     packVersion,
+				Description: packDescription,
 			}
 
-			manifest = map[string]interface{}{
-				"name":        packName,
-				"version":     packVersion,
-				"description": packDescription,
+			if packOS != "" || packArch != "" {
+				typedManifest.HardwareRequirements = &archive.HardwareReq{}
+				if packOS != "" {
+					typedManifest.HardwareRequirements.OS = []string{packOS}
+				}
+				if packArch != "" {
+					typedManifest.HardwareRequirements.Arch = []string{packArch}
+				}
 			}
-			if len(hwReqs) > 0 {
-				manifest["hardware_requirements"] = hwReqs
-			}
+
+			// Convert typedManifest back to map[string]interface{} to keep compatibility with loadAndMergeManifests' return type
+			// although we could just change the return type of loadAndMergeManifests to *archive.Manifest.
+			// For now, let's just marshal and unmarshal.
+			data, _ := json.Marshal(typedManifest)
+			manifest = make(map[string]interface{})
+			json.Unmarshal(data, &manifest)
 		}
 
 		manifestData, err := json.MarshalIndent(manifest, "", "  ")

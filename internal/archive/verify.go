@@ -3,6 +3,7 @@ package archive
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -33,16 +34,28 @@ func validateManifest(m *Manifest, fileExists func(string) bool) error {
 		doc["license"] = m.License
 	}
 	if m.HardwareRequirements != nil {
-		doc["hardware_requirements"] = m.HardwareRequirements
+		data, _ := json.Marshal(m.HardwareRequirements)
+		var hr interface{}
+		json.Unmarshal(data, &hr)
+		doc["hardware_requirements"] = hr
 	}
 	if m.HardwareDependencies != nil {
-		doc["hardware_dependencies"] = m.HardwareDependencies
+		data, _ := json.Marshal(m.HardwareDependencies)
+		var hd interface{}
+		json.Unmarshal(data, &hd)
+		doc["hardware_dependencies"] = hd
 	}
 	if m.Brain != nil {
-		doc["brain"] = m.Brain
+		data, _ := json.Marshal(m.Brain)
+		var b interface{}
+		json.Unmarshal(data, &b)
+		doc["brain"] = b
 	}
 	if m.Runtime != nil {
-		doc["runtime"] = m.Runtime
+		data, _ := json.Marshal(m.Runtime)
+		var r interface{}
+		json.Unmarshal(data, &r)
+		doc["runtime"] = r
 	}
 	if m.Dependencies != nil {
 		doc["dependencies"] = m.Dependencies

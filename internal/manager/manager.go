@@ -8,60 +8,83 @@ import (
 	"github.com/CognitiveOS-Project/cpm/internal/archive"
 )
 
+// CmdExecutor abstracts command execution for testability.
+type CmdExecutor interface {
+	Run(name string, args ...string) error
+	Output(name string, args ...string) ([]byte, error)
+	CombinedOutput(name string, args ...string) ([]byte, error)
+}
+
+type realExecutor struct{}
+
+func (e realExecutor) Run(name string, args ...string) error {
+	return exec.Command(name, args...).Run()
+}
+
+func (e realExecutor) Output(name string, args ...string) ([]byte, error) {
+	return exec.Command(name, args...).Output()
+}
+
+func (e realExecutor) CombinedOutput(name string, args ...string) ([]byte, error) {
+	return exec.Command(name, args...).CombinedOutput()
+}
+
+// Executor is the default command executor. Can be replaced in tests.
+var Executor CmdExecutor = realExecutor{}
+
 // Install installs a system dependency using the appropriate package manager.
 func Install(root string, dep archive.SystemDependency) error {
-	var cmd *exec.Cmd
+	var name string
+	var args []string
 
 	switch dep.Manager {
 	case "apk":
-		// For Alpine, use --root to install into target directory if provided
-		args := []string{"add"}
+		args = []string{"add"}
 		if root != "/" {
 			args = append(args, "--root", root)
 		}
-		
 		pkg := dep.Name
 		if dep.Version != "" && dep.Version != "latest" {
 			pkg = fmt.Sprintf("%s=%s", dep.Name, dep.Version)
 		}
 		args = append(args, pkg)
-		cmd = exec.Command("apk", args...)
+		name = "apk"
 
 	case "npm":
-		args := []string{"install", "-g"}
+		args = []string{"install", "-g"}
 		pkg := dep.Name
 		if dep.Version != "" && dep.Version != "latest" {
 			pkg = fmt.Sprintf("%s@%s", dep.Name, dep.Version)
 		}
 		args = append(args, pkg)
-		cmd = exec.Command("npm", args...)
+		name = "npm"
 
 	case "bun":
-		args := []string{"install", "-g"}
+		args = []string{"install", "-g"}
 		pkg := dep.Name
 		if dep.Version != "" && dep.Version != "latest" {
 			pkg = fmt.Sprintf("%s@%s", dep.Name, dep.Version)
 		}
 		args = append(args, pkg)
-		cmd = exec.Command("bun", args...)
+		name = "bun"
 
 	case "pip":
-		args := []string{"install"}
+		args = []string{"install"}
 		pkg := dep.Name
 		if dep.Version != "" && dep.Version != "latest" {
 			pkg = fmt.Sprintf("%s==%s", dep.Name, dep.Version)
 		}
 		args = append(args, pkg)
-		cmd = exec.Command("pip", args...)
+		name = "pip"
 
 	case "cargo":
-		args := []string{"install"}
+		args = []string{"install"}
 		pkg := dep.Name
 		if dep.Version != "" && dep.Version != "latest" {
 			args = append(args, "--version", dep.Version)
 		}
 		args = append(args, pkg)
-		cmd = exec.Command("cargo", args...)
+		name = "cargo"
 
 	case "go":
 		pkg := dep.Name
@@ -69,32 +92,26 @@ func Install(root string, dep archive.SystemDependency) error {
 		if dep.Version != "" {
 			version = "v" + dep.Version
 		}
-		cmd = exec.Command("go", "install", fmt.Sprintf("%s@%s", pkg, version))
+		args = []string{"install", fmt.Sprintf("%s@%s", pkg, version)}
+		name = "go"
 
 	case "git":
-		// For git, we clone the repo into /cognitiveos/lib/cpm/externals/<name>
-		// This is a simplified implementation
 		repoPath := fmt.Sprintf("/cognitiveos/lib/cpm/externals/%s", dep.Name)
 		if root != "/" {
 			repoPath = fmt.Sprintf("%s/cognitiveos/lib/cpm/externals/%s", root, dep.Name)
 		}
-		
-		args := []string{"clone"}
+		args = []string{"clone"}
 		if dep.Version != "" && dep.Version != "latest" {
 			args = append(args, "-b", dep.Version)
 		}
 		args = append(args, dep.Name, repoPath)
-		cmd = exec.Command("git", args...)
+		name = "git"
 
 	default:
 		return fmt.Errorf("unsupported package manager: %s", dep.Manager)
 	}
 
-	if cmd == nil {
-		return fmt.Errorf("failed to construct install command for %s", dep.Name)
-	}
-
-	output, err := cmd.CombinedOutput()
+	output, err := Executor.CombinedOutput(name, args...)
 	if err != nil {
 		return fmt.Errorf("install %s failed: %w (output: %s)", dep.Name, err, string(output))
 	}
@@ -110,18 +127,17 @@ func IsInstalled(root string, dep archive.SystemDependency) (bool, error) {
 		if root != "/" {
 			args = append([]string{"--root", root}, args...)
 		}
-		cmd := exec.Command("apk", args...)
-		err := cmd.Run()
+		err := Executor.Run("apk", args...)
 		if err == nil {
 			return true, nil
 		}
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() != 0 {
-			return false, nil
+		// If the error is not an ExitError, something went wrong with the execution
+		if _, ok := err.(*exec.ExitError); !ok {
+			return false, err
 		}
-		return false, err
+		return false, nil
 
 	default:
-		// For other managers, assume not installed or use a simpler check
 		return false, nil
 	}
 }
@@ -134,17 +150,14 @@ func ResolveVersion(root string, dep archive.SystemDependency) (string, error) {
 		if root != "/" {
 			args = append([]string{"--root", root}, args...)
 		}
-		cmd := exec.Command("apk", args...)
-		output, err := cmd.Output()
+		output, err := Executor.Output("apk", args...)
 		if err != nil {
 			return "", fmt.Errorf("failed to query apk: %w", err)
 		}
-		
-		// apk search output: "package-version-arch"
+
 		line := strings.TrimSpace(string(output))
 		parts := strings.Split(line, "-")
 		if len(parts) >= 2 {
-			// This is a very rough version extraction
 			return parts[len(parts)-2], nil
 		}
 		return "latest", nil
