@@ -61,7 +61,7 @@ func Load(path string) (*Registries, error) {
 func defaultRegistries() *Registries {
 	return &Registries{
 		Official: OfficialRegistries{
-			Primary: "https://registry-us-all-distros-official.registry.cognitive-os.org/v1",
+			Primary: "https://registry-us-all-distros-official.cognitive-os.org/v1",
 			Mirrors: map[string]string{},
 		},
 		Alternatives: map[string]string{},

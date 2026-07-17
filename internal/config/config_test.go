@@ -11,7 +11,7 @@ func TestLoadDefaultsWhenNoFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load should not error when file missing: %v", err)
 	}
-	if r.Official.Primary != "https://registry-us-all-distros-official.registry.cognitive-os.org/v1" {
+	if r.Official.Primary != "https://registry-us-all-distros-official.cognitive-os.org/v1" {
 		t.Fatalf("expected default primary, got %s", r.Official.Primary)
 	}
 }
@@ -21,11 +21,11 @@ func TestLoadFromFile(t *testing.T) {
 	path := filepath.Join(dir, "registries.toml")
 	_ = os.WriteFile(path, []byte(`
 [official]
-primary = "https://registry-us-all-distros-official.registry.cognitive-os.org/v1"
+primary = "https://registry-us-all-distros-official.cognitive-os.org/v1"
 
 [official.mirrors]
-eu = "https://registry-eu-all-distros-official.registry.cognitive-os.org/v1"
-jp = "https://registry-jp-all-distros-official.registry.cognitive-os.org/v1"
+eu = "https://registry-eu-all-distros-official.cognitive-os.org/v1"
+jp = "https://registry-jp-all-distros-official.cognitive-os.org/v1"
 
 [alternative]
 community = "https://community-registry.cognitive-os.org/v1"
@@ -37,14 +37,14 @@ my-private = "https://my-registry.example.com/v1"
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if r.Official.Primary != "https://registry-us-all-distros-official.registry.cognitive-os.org/v1" {
+	if r.Official.Primary != "https://registry-us-all-distros-official.cognitive-os.org/v1" {
 		t.Fatalf("expected primary, got %s", r.Official.Primary)
 	}
 
 	if len(r.Official.Mirrors) != 2 {
 		t.Fatalf("expected 2 mirrors, got %d", len(r.Official.Mirrors))
 	}
-	if r.Official.Mirrors["eu"] != "https://registry-eu-all-distros-official.registry.cognitive-os.org/v1" {
+	if r.Official.Mirrors["eu"] != "https://registry-eu-all-distros-official.cognitive-os.org/v1" {
 		t.Fatalf("expected eu mirror, got %s", r.Official.Mirrors["eu"])
 	}
 
@@ -60,7 +60,7 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve empty should not error: %v", err)
 	}
-	if url != "https://registry-us-all-distros-official.registry.cognitive-os.org/v1" {
+	if url != "https://registry-us-all-distros-official.cognitive-os.org/v1" {
 		t.Fatalf("expected default primary, got %s", url)
 	}
 
@@ -68,7 +68,7 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve official should not error: %v", err)
 	}
-	if url != "https://registry-us-all-distros-official.registry.cognitive-os.org/v1" {
+	if url != "https://registry-us-all-distros-official.cognitive-os.org/v1" {
 		t.Fatalf("expected official primary, got %s", url)
 	}
 }
