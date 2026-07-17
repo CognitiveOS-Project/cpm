@@ -54,6 +54,7 @@ export CPM_CACHE_DIR=/tmp/cpm-test/cache
 - [cognitive-os.org](https://cognitive-os.org) — project website
 - [Registry Server](https://github.com/CognitiveOS-Project/registry-server) — .cgp package registry
 - [cgp-template](https://github.com/CognitiveOS-Project/cgp-template) — .cgp package boilerplate
+- [coginit](https://github.com/CognitiveOS-Project/coginit) — boot manager that orchestrates CognitiveOS services
 - [Product Specs](https://github.com/CognitiveOS-Project/product-specs) — .cgp format specification
 - [CognitiveOS Project](https://github.com/CognitiveOS-Project) — GitHub organization
 
