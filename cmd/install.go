@@ -226,7 +226,7 @@ func isURL(s string) bool {
 }
 
 func defaultPrimary() string {
-	return "https://registry-us-all-distros-official.cognitive-os.org/v1"
+	return "https://registry-us-all-distros-official.registry.cognitive-os.org/v1"
 }
 
 func downloadRemoteWeights(dataDir string) error {
