@@ -61,6 +61,8 @@ type Registry interface {
 	Unlock(name, version, code string) error
 	Download(name, version string, opts DownloadOptions) (io.ReadCloser, error)
 	Publish(token string, req PublishRequest) error
+	PublishSSH(fingerprint, signature string, req PublishRequest) error
+	RegisterPublicKey(publicKey string) (*RegisterResponse, error)
 }
 
 type Client struct {
@@ -286,4 +288,69 @@ func (c *Client) Publish(token string, req PublishRequest) error {
 		return fmt.Errorf("registry: %s", string(respBody))
 	}
 	return nil
+}
+
+type RegisterResponse struct {
+	Fingerprint string `json:"fingerprint"`
+	KeyType     string `json:"public_key_type"`
+	Comment     string `json:"comment,omitempty"`
+	RegisteredAt string `json:"registered_at"`
+}
+
+func (c *Client) PublishSSH(fingerprint, signature string, req PublishRequest) error {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("encode: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.BaseURL+"/patches", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-SSH-Fingerprint", fingerprint)
+	httpReq.Header.Set("X-SSH-Signature", signature)
+
+	resp, err := c.HTTP.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("network: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("registry: %s", string(respBody))
+	}
+	return nil
+}
+
+func (c *Client) RegisterPublicKey(publicKey string) (*RegisterResponse, error) {
+	payload := map[string]string{"public_key": publicKey}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.BaseURL+"/auth/register", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTP.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("network: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("registry: %s", string(respBody))
+	}
+
+	var regResp RegisterResponse
+	if err := json.NewDecoder(resp.Body).Decode(&regResp); err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	return &regResp, nil
 }

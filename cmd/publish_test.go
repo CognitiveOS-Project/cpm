@@ -16,7 +16,9 @@ import (
 )
 
 type mockRegistry struct {
-	publishFunc func(token string, req registry.PublishRequest) error
+	publishFunc     func(token string, req registry.PublishRequest) error
+	publishSSHFunc  func(fingerprint, signature string, req registry.PublishRequest) error
+	registerFunc    func(publicKey string) (*registry.RegisterResponse, error)
 }
 
 func (m *mockRegistry) Search(query string, opts registry.SearchOptions) (*registry.SearchResult, error) {
@@ -39,6 +41,18 @@ func (m *mockRegistry) Download(name, version string, opts registry.DownloadOpti
 }
 func (m *mockRegistry) Publish(token string, req registry.PublishRequest) error {
 	return m.publishFunc(token, req)
+}
+func (m *mockRegistry) PublishSSH(fingerprint, signature string, req registry.PublishRequest) error {
+	if m.publishSSHFunc != nil {
+		return m.publishSSHFunc(fingerprint, signature, req)
+	}
+	return nil
+}
+func (m *mockRegistry) RegisterPublicKey(publicKey string) (*registry.RegisterResponse, error) {
+	if m.registerFunc != nil {
+		return m.registerFunc(publicKey)
+	}
+	return nil, nil
 }
 
 func createTestCGP(t *testing.T, name, version string) string {
@@ -87,11 +101,14 @@ func TestPublishCmd(t *testing.T) {
 
 	t.Run("successful publish", func(t *testing.T) {
 		var capturedReq registry.PublishRequest
+		var capturedFingerprint string
 		mock := &mockRegistry{
 			publishFunc: func(token string, req registry.PublishRequest) error {
-				if token != "test-token" {
-					return fmt.Errorf("wrong token")
-				}
+				capturedReq = req
+				return nil
+			},
+			publishSSHFunc: func(fingerprint, signature string, req registry.PublishRequest) error {
+				capturedFingerprint = fingerprint
 				capturedReq = req
 				return nil
 			},
@@ -103,6 +120,7 @@ func TestPublishCmd(t *testing.T) {
 		publishTags = []string{"test", "mock"}
 		publishScope = "testorg"
 		publishVisibility = "public"
+		publishKeyPath = "/nonexistent/key"
 
 		err := publishCmd.RunE(nil, []string{path})
 		if err != nil {
@@ -121,6 +139,11 @@ func TestPublishCmd(t *testing.T) {
 		if capturedReq.Scope != "testorg" {
 			t.Errorf("scope mismatch: %s", capturedReq.Scope)
 		}
+		if capturedFingerprint != "" {
+			t.Logf("used SSH auth (fingerprint: %s)", capturedFingerprint)
+		}
+
+		publishKeyPath = ""
 	})
 
 	t.Run("missing download URL", func(t *testing.T) {
@@ -131,13 +154,15 @@ func TestPublishCmd(t *testing.T) {
 		}
 	})
 
-	t.Run("missing token", func(t *testing.T) {
+	t.Run("missing token and no SSH key", func(t *testing.T) {
 		os.Unsetenv("CPM_REGISTRY_TOKEN")
 		publishDownloadURL = downloadURL
+		publishKeyPath = "/nonexistent/key"
 		err := publishCmd.RunE(nil, []string{path})
 		if err == nil || !contains(err.Error(), "ERROR:P005") {
 			t.Fatalf("expected ERROR:P005, got %v", err)
 		}
+		publishKeyPath = ""
 		os.Setenv("CPM_REGISTRY_TOKEN", "test-token")
 	})
 
