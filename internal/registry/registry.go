@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"time"
@@ -62,6 +63,7 @@ type Registry interface {
 	Download(name, version string, opts DownloadOptions) (io.ReadCloser, error)
 	Publish(token string, req PublishRequest) error
 	PublishSSH(fingerprint, signature string, req PublishRequest) error
+	PublishOfficial(fingerprint, signature string, req PublishRequest, metadataJSON, cgpData []byte) error
 	RegisterPublicKey(publicKey string) (*RegisterResponse, error)
 }
 
@@ -308,6 +310,51 @@ func (c *Client) PublishSSH(fingerprint, signature string, req PublishRequest) e
 		return fmt.Errorf("request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-SSH-Fingerprint", fingerprint)
+	httpReq.Header.Set("X-SSH-Signature", signature)
+
+	resp, err := c.HTTP.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("network: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("registry: %s", string(respBody))
+	}
+	return nil
+}
+
+func (c *Client) PublishOfficial(fingerprint, signature string, req PublishRequest, metadataJSON, cgpData []byte) error {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+
+	mPart, err := mw.CreateFormField("metadata")
+	if err != nil {
+		return fmt.Errorf("create metadata part: %w", err)
+	}
+	if _, err := mPart.Write(metadataJSON); err != nil {
+		return fmt.Errorf("write metadata: %w", err)
+	}
+
+	cPart, err := mw.CreateFormFile("cgp", "package.cgp")
+	if err != nil {
+		return fmt.Errorf("create cgp part: %w", err)
+	}
+	if _, err := cPart.Write(cgpData); err != nil {
+		return fmt.Errorf("write cgp: %w", err)
+	}
+
+	if err := mw.Close(); err != nil {
+		return fmt.Errorf("close multipart: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.BaseURL+"/patches", &buf)
+	if err != nil {
+		return fmt.Errorf("request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", mw.FormDataContentType())
 	httpReq.Header.Set("X-SSH-Fingerprint", fingerprint)
 	httpReq.Header.Set("X-SSH-Signature", signature)
 

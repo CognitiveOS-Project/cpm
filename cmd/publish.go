@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const maxCGPSize = 32 << 20 // 32 MB Cloud Run request limit
+
 var (
 	publishDownloadURL string
 	publishTags       []string
@@ -40,17 +42,31 @@ func defaultSSHKeyPath() string {
 var publishCmd = &cobra.Command{
 	Use:   "publish <path>",
 	Short: "Publish a .cgp patch to the registry",
-	Long: `Publish a .cgp archive to the configured registry notary.
+	Long: `Publish a .cgp archive to the configured registry.
 
-Authenticates using SSH key signing. The manifest SHA-256 is signed
-with the publisher's private key. The registry verifies the signature
-against the registered public key.
+Two publish modes are supported:
 
-If no SSH key is found, falls back to CPM_REGISTRY_TOKEN (deprecated).
+  Official (no --download-url):
+    Uploads the .cgp to the registry, which creates a GitHub Release and
+    stores the package. Best for packages under 32 MB.
+
+  Notary proxy (--download-url required):
+    Registers metadata only. The .cgp must be hosted externally (GitHub
+    Releases, personal server, etc.). Consumers install via UPR:
+      cpm install ghr:owner/repo@tag
+
+For packages larger than 32 MB (e.g. with model weights), host the .cgp
+on GitHub Releases and publish metadata via --download-url, or let
+consumers install directly:
+  cpm install ghr:owner/repo@tag
+
+Authenticates using SSH key signing. Falls back to CPM_REGISTRY_TOKEN
+(deprecated) if no SSH key is found.
 
 Examples:
+  cpm publish ./my-patch-1.0.0.cgp
+  cpm publish ./my-patch-1.0.0.cgp --key ~/.ssh/my_key
   cpm publish ./my-patch-1.0.0.cgp --download-url https://github.com/.../my-patch-1.0.0.cgp
-  cpm publish ./my-patch-1.0.0.cgp --key ~/.ssh/my_key --download-url https://...
   cpm publish ./my-patch-1.0.0.cgp --tag vision --download-url https://...`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,8 +89,13 @@ Examples:
 		}
 		rc := getRegistryClient()
 
+		keyPath := publishKeyPath
+		if keyPath == "" {
+			keyPath = defaultSSHKeyPath()
+		}
+
 		if publishDownloadURL == "" {
-			return fmt.Errorf("ERROR:P006: --download-url is required (notary registry does not host files)")
+			return publishOfficial(rc, keyPath, path, m)
 		}
 
 		req := registry.PublishRequest{
@@ -88,11 +109,6 @@ Examples:
 			Visibility:  publishVisibility,
 		}
 
-		keyPath := publishKeyPath
-		if keyPath == "" {
-			keyPath = defaultSSHKeyPath()
-		}
-
 		if keyPath != "" {
 			if _, err := os.Stat(keyPath); err == nil {
 				return publishWithSSH(rc, keyPath, m, req)
@@ -101,6 +117,74 @@ Examples:
 
 		return publishWithToken(rc, m, req)
 	},
+}
+
+func publishOfficial(rc registry.Registry, keyPath, cgpPath string, m *archive.Manifest) error {
+	info, err := os.Stat(cgpPath)
+	if err != nil {
+		return fmt.Errorf("ERROR:P011: stat %s: %w", cgpPath, err)
+	}
+	if info.Size() > maxCGPSize {
+		mb := info.Size() >> 20
+		return fmt.Errorf(`ERROR:P012: .cgp file is %d MB, exceeds 32 MB Cloud Run limit.
+
+For large packages, host the .cgp on GitHub Releases and publish metadata:
+  cpm publish %s --download-url https://github.com/owner/repo/releases/download/tag/package.cgp
+
+Or let consumers install directly via UPR:
+  cpm install ghr:owner/repo@tag`, mb, cgpPath)
+	}
+
+	cgpData, err := os.ReadFile(cgpPath)
+	if err != nil {
+		return fmt.Errorf("ERROR:P013: read %s: %w", cgpPath, err)
+	}
+
+	if keyPath == "" {
+		return fmt.Errorf("ERROR:P005: no SSH key found (official publish requires SSH auth)")
+	}
+	if _, err := os.Stat(keyPath); err != nil {
+		return fmt.Errorf("ERROR:P005: SSH key not found: %s", keyPath)
+	}
+
+	signer, err := auth.LoadPrivateKey(keyPath)
+	if err != nil {
+		return fmt.Errorf("ERROR:P008: load SSH key: %w", err)
+	}
+
+	fingerprint := auth.PublicKeyFingerprint(signer)
+
+	manifestJSON, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("ERROR:P009: marshal manifest: %w", err)
+	}
+
+	signature, err := auth.SignManifest(signer, manifestJSON)
+	if err != nil {
+		return fmt.Errorf("ERROR:P010: sign manifest: %w", err)
+	}
+
+	req := registry.PublishRequest{
+		Name:        m.Name,
+		Version:     m.Version,
+		Description: m.Description,
+		Author:      m.Author,
+		Tags:        publishTags,
+		Scope:       publishScope,
+		Visibility:  publishVisibility,
+	}
+
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("ERROR:P009: marshal request: %w", err)
+	}
+
+	if err := rc.PublishOfficial(fingerprint, signature, req, reqJSON, cgpData); err != nil {
+		return fmt.Errorf("ERROR:P007: publish: %w", err)
+	}
+
+	fmt.Printf("Published %s v%s (official, ssh:%s)\n", m.Name, m.Version, fingerprint[:20])
+	return nil
 }
 
 func publishWithSSH(rc registry.Registry, keyPath string, m *archive.Manifest, req registry.PublishRequest) error {
@@ -137,10 +221,6 @@ func publishWithToken(rc registry.Registry, m *archive.Manifest, req registry.Pu
 
 	fmt.Fprintln(os.Stderr, "Warning: using CPM_REGISTRY_TOKEN (deprecated, use SSH key auth)")
 
-	manifestJSON, _ := json.Marshal(m)
-	req.SHA256 = ""
-	_ = manifestJSON
-
 	if err := rc.Publish(token, req); err != nil {
 		return fmt.Errorf("ERROR:P007: publish: %w", err)
 	}
@@ -151,7 +231,7 @@ func publishWithToken(rc registry.Registry, m *archive.Manifest, req registry.Pu
 
 func init() {
 	fs := publishCmd.Flags()
-	fs.StringVar(&publishDownloadURL, "download-url", "", "Canonical download URL for the .cgp archive")
+	fs.StringVar(&publishDownloadURL, "download-url", "", "Canonical download URL for notary proxy mode")
 	fs.StringSliceVar(&publishTags, "tag", nil, "Tags for the package (repeatable)")
 	fs.StringVar(&publishScope, "scope", "", "Package scope (e.g. username, org)")
 	fs.StringVar(&publishVisibility, "visibility", "public", "Package visibility (public, private)")
