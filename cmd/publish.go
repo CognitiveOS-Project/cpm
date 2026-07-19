@@ -126,7 +126,7 @@ func publishOfficial(rc registry.Registry, keyPath, cgpPath string, m *archive.M
 	}
 	if info.Size() > maxCGPSize {
 		mb := info.Size() >> 20
-		return fmt.Errorf(`ERROR:P012: .cgp file is %d MB, exceeds 32 MB Cloud Run limit.
+		return fmt.Errorf(`ERROR:P012: .cgp file is %d MB, exceeds 32 MB registry server hosting limit.
 
 For large packages, host the .cgp on GitHub Releases and publish metadata:
   cpm publish %s --download-url https://github.com/owner/repo/releases/download/tag/package.cgp
