@@ -66,7 +66,7 @@ Files are placed at:
 
 		ctx := context.Background()
 
-		candidates, err := prov.Search(ctx, modelName, 5)
+		candidates, err := prov.Search(ctx, modelName, 5, format)
 		if err != nil {
 			return fmt.Errorf("search: %w", err)
 		}
@@ -75,21 +75,30 @@ Files are placed at:
 
 		var match *weights.Candidate
 		for i := range candidates {
-			if strings.HasSuffix(strings.ToLower(candidates[i].Filename), formatExt) {
+			if !strings.HasSuffix(strings.ToLower(candidates[i].Filename), formatExt) {
+				continue
+			}
+			if match == nil || candidates[i].SizeBytes < match.SizeBytes {
 				match = &candidates[i]
-				break
 			}
 		}
 		if match == nil {
 			for i := range candidates {
-				if strings.Contains(strings.ToLower(candidates[i].Filename), strings.ToLower(modelName)) {
+				if !strings.Contains(strings.ToLower(candidates[i].Filename), strings.ToLower(modelName)) {
+					continue
+				}
+				if match == nil || candidates[i].SizeBytes < match.SizeBytes {
 					match = &candidates[i]
-					break
 				}
 			}
 		}
 		if match == nil && len(candidates) > 0 {
 			match = &candidates[0]
+			for i := range candidates {
+				if candidates[i].SizeBytes < match.SizeBytes {
+					match = &candidates[i]
+				}
+			}
 		}
 		if match == nil {
 			return fmt.Errorf("no %s files found for %q", formatExt, modelName)

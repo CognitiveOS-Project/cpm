@@ -41,6 +41,16 @@
       "type": "object",
       "description": "Minimum hardware specifications for this patch",
       "properties": {
+        "os": {
+          "type": "array",
+          "description": "Supported operating systems",
+          "items": { "type": "string", "enum": ["linux", "darwin", "windows"] }
+        },
+        "arch": {
+          "type": "array",
+          "description": "Supported CPU architectures",
+          "items": { "type": "string", "enum": ["amd64", "arm64", "riscv64"] }
+        },
         "min_ram_mb": {
           "type": "integer",
           "description": "Minimum RAM in megabytes"
@@ -56,6 +66,27 @@
         "recommended_npu": {
           "type": "string",
           "description": "Recommended NPU architecture"
+        }
+      }
+    },
+    "hardware_dependencies": {
+      "type": "object",
+      "description": "System-level dependencies required by this patch's MCP servers and tools",
+      "properties": {
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "manager", "stage"],
+            "properties": {
+              "name": { "type": "string", "description": "Package name as understood by the system package manager" },
+              "manager": { "type": "string", "enum": ["apk", "npm", "bun", "pip", "cargo", "go", "git"], "description": "Package manager to use" },
+              "stage": { "type": "string", "enum": ["build", "boot", "install", "runtime"], "description": "Lifecycle stage when this package should be installed" },
+              "required": { "type": "boolean", "default": true, "description": "If false, patch install proceeds even if this package fails to install" },
+              "version": { "type": "string", "description": "Semver version or 'latest'" },
+              "description": { "type": "string", "description": "Human-readable description" }
+            }
+          }
         }
       }
     },

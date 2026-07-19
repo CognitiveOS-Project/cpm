@@ -5,8 +5,10 @@
 ## Build
 
 ```bash
-export PATH="/tmp/go/bin:$(go env GOPATH)/bin:$PATH"
-go build -o bin/cpm ./cmd/cpm
+make build    # compile to build/bin/cpm
+make test     # run tests
+make lint     # go vet
+make clean    # remove build artifacts
 ```
 
 ## Commands
@@ -47,3 +49,10 @@ export CPM_CACHE_DIR=/tmp/cpm-test/cache
 - `github.com/spf13/cobra` — CLI framework
 - `github.com/santhosh-tekuri/jsonschema/v6` — JSON Schema validation
 - `gopkg.in/ini.v1` — TOML config parsing
+
+## Cloning Convention
+- Use SSH () for development.
+- Use HTTPS () for build scripts that clone public dependencies.
+## Cloning Convention
+- Use SSH (git@github.com:) for development.
+- Use HTTPS (https://github.com/) for build scripts that clone public dependencies.

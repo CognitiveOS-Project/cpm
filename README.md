@@ -7,7 +7,8 @@ It is the npm/pip/apt for the agent era — hardware-aware, MCP-native, and desi
 ## Quick Start
 
 ```bash
-go build -o bin/cpm ./cmd/cpm
+make build
+./build/bin/cpm init my-skill
 
 # Create a skill skeleton
 ./bin/cpm init my-skill
@@ -53,16 +54,25 @@ export CPM_CACHE_DIR=/tmp/cpm-test/cache
 - [cognitive-os.org](https://cognitive-os.org) — project website
 - [Registry Server](https://github.com/CognitiveOS-Project/registry-server) — .cgp package registry
 - [cgp-template](https://github.com/CognitiveOS-Project/cgp-template) — .cgp package boilerplate
+- [coginit](https://github.com/CognitiveOS-Project/coginit) — boot manager that orchestrates CognitiveOS services
 - [Product Specs](https://github.com/CognitiveOS-Project/product-specs) — .cgp format specification
 - [CognitiveOS Project](https://github.com/CognitiveOS-Project) — GitHub organization
 
+## Build
+
+```bash
+make build    # Compile to build/bin/cpm
+make test     # Run tests
+make lint     # Run go vet
+make clean    # Remove build artifacts
+```
+
 ## Contributing
 
-1. Branch from `development`, not `main`
-2. Use topic branches: `feature/<name>`, `fix/<name>`, `bugfix/<name>`
-3. Open a PR to `development` with a clear title and description
-4. Merge via squash after review
-5. Changes flow to `main` via a release PR
+1. Branch from `main`
+2. Use topic branches: `feature/<name>`, `fix/<name>`
+3. Open a PR to `main` with a clear title and description
+4. Merge after review
 
 See the [SDLC repo](https://github.com/CognitiveOS-Project/sdlc) for the full contribution guide, code review standards, and testing strategy.
 
