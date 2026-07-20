@@ -253,17 +253,18 @@ func (c *Client) Download(name, version string, opts DownloadOptions) (io.ReadCl
 }
 
 type PublishRequest struct {
-	Name             string   `json:"name"`
-	Version          string   `json:"version"`
-	Description      string   `json:"description"`
-	Author           string   `json:"author,omitempty"`
-	SourceRepository string   `json:"source_repository,omitempty"`
-	SourceIssues     string   `json:"source_issues,omitempty"`
-	DownloadURL      string   `json:"download_url,omitempty"`
-	SHA256           string   `json:"sha256,omitempty"`
-	Tags             []string `json:"tags,omitempty"`
-	Scope            string   `json:"scope,omitempty"`
-	Visibility       string   `json:"visibility,omitempty"`
+	Name             string          `json:"name"`
+	Version          string          `json:"version"`
+	Description      string          `json:"description"`
+	Author           string          `json:"author,omitempty"`
+	SourceRepository string          `json:"source_repository,omitempty"`
+	SourceIssues     string          `json:"source_issues,omitempty"`
+	DownloadURL      string          `json:"download_url,omitempty"`
+	SHA256           string          `json:"sha256,omitempty"`
+	Tags             []string        `json:"tags,omitempty"`
+	Scope            string          `json:"scope,omitempty"`
+	Visibility       string          `json:"visibility,omitempty"`
+	Manifest         json.RawMessage `json:"manifest,omitempty"`
 }
 
 func (c *Client) Publish(token string, req PublishRequest) error {

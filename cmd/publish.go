@@ -172,6 +172,7 @@ Or let consumers install directly via UPR:
 		Tags:        publishTags,
 		Scope:       publishScope,
 		Visibility:  publishVisibility,
+		Manifest:    manifestJSON,
 	}
 
 	reqJSON, err := json.Marshal(req)
