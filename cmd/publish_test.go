@@ -24,6 +24,7 @@ type mockRegistry struct {
 	publishSSHFunc      func(fingerprint, signature string, req registry.PublishRequest) error
 	publishOfficialFunc func(fingerprint, signature string, req registry.PublishRequest, metadataJSON, cgpData []byte) error
 	registerFunc        func(publicKey string) (*registry.RegisterResponse, error)
+	authStatusFunc      func(fingerprint string) (*registry.AuthStatusResponse, error)
 }
 
 func (m *mockRegistry) Search(query string, opts registry.SearchOptions) (*registry.SearchResult, error) {
@@ -64,6 +65,12 @@ func (m *mockRegistry) RegisterPublicKey(publicKey string) (*registry.RegisterRe
 		return m.registerFunc(publicKey)
 	}
 	return nil, nil
+}
+func (m *mockRegistry) CheckAuthStatus(fingerprint string) (*registry.AuthStatusResponse, error) {
+	if m.authStatusFunc != nil {
+		return m.authStatusFunc(fingerprint)
+	}
+	return &registry.AuthStatusResponse{Registered: true}, nil
 }
 
 func createTestCGP(t *testing.T, name, version string) string {

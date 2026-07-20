@@ -65,6 +65,7 @@ type Registry interface {
 	PublishSSH(fingerprint, signature string, req PublishRequest) error
 	PublishOfficial(fingerprint, signature string, req PublishRequest, metadataJSON, cgpData []byte) error
 	RegisterPublicKey(publicKey string) (*RegisterResponse, error)
+	CheckAuthStatus(fingerprint string) (*AuthStatusResponse, error)
 }
 
 type Client struct {
@@ -294,10 +295,16 @@ func (c *Client) Publish(token string, req PublishRequest) error {
 }
 
 type RegisterResponse struct {
-	Fingerprint string `json:"fingerprint"`
-	KeyType     string `json:"public_key_type"`
-	Comment     string `json:"comment,omitempty"`
+	Fingerprint  string `json:"fingerprint"`
+	KeyType      string `json:"public_key_type"`
+	Comment      string `json:"comment,omitempty"`
 	RegisteredAt string `json:"registered_at"`
+}
+
+type AuthStatusResponse struct {
+	Fingerprint  string `json:"fingerprint"`
+	Registered   bool   `json:"registered"`
+	RegisteredAt string `json:"registered_at,omitempty"`
 }
 
 func (c *Client) PublishSSH(fingerprint, signature string, req PublishRequest) error {
@@ -401,4 +408,35 @@ func (c *Client) RegisterPublicKey(publicKey string) (*RegisterResponse, error) 
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 	return &regResp, nil
+}
+
+func (c *Client) CheckAuthStatus(fingerprint string) (*AuthStatusResponse, error) {
+	payload := map[string]string{"fingerprint": fingerprint}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("PUT", c.BaseURL+"/auth/status", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTP.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("network: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("registry: %s", string(respBody))
+	}
+
+	var statusResp AuthStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&statusResp); err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	return &statusResp, nil
 }
