@@ -22,6 +22,9 @@ func TestInitCmd(t *testing.T) {
 				"my-skill/prompts/system.md",
 				"my-skill/prompts/templates/",
 				"my-skill/tools/",
+				"my-skill/.github/docker/Dockerfile.ci",
+				"my-skill/.github/workflows/ci.yml",
+				"my-skill/.github/workflows/publish.yml",
 			},
 		},
 		{
@@ -31,6 +34,9 @@ func TestInitCmd(t *testing.T) {
 			checkFiles: []string{
 				"prompt-skill/cognitive.json",
 				"prompt-skill/prompts/system.md",
+				"prompt-skill/.github/docker/Dockerfile.ci",
+				"prompt-skill/.github/workflows/ci.yml",
+				"prompt-skill/.github/workflows/publish.yml",
 			},
 		},
 		{
@@ -40,6 +46,9 @@ func TestInitCmd(t *testing.T) {
 			checkFiles: []string{
 				"bridge-skill/cognitive.json",
 				"bridge-skill/tools/",
+				"bridge-skill/.github/docker/Dockerfile.ci",
+				"bridge-skill/.github/workflows/ci.yml",
+				"bridge-skill/.github/workflows/publish.yml",
 			},
 		},
 		{
@@ -48,6 +57,9 @@ func TestInitCmd(t *testing.T) {
 			template: "gguf-model",
 			checkFiles: []string{
 				"model-skill/cognitive.json",
+				"model-skill/.github/docker/Dockerfile.ci",
+				"model-skill/.github/workflows/ci.yml",
+				"model-skill/.github/workflows/publish.yml",
 			},
 		},
 		{
@@ -56,6 +68,9 @@ func TestInitCmd(t *testing.T) {
 			template: "firmware",
 			checkFiles: []string{
 				"firmware-skill/cognitive.json",
+				"firmware-skill/.github/docker/Dockerfile.ci",
+				"firmware-skill/.github/workflows/ci.yml",
+				"firmware-skill/.github/workflows/publish.yml",
 			},
 		},
 		{
@@ -68,6 +83,9 @@ func TestInitCmd(t *testing.T) {
 				"full-skill/prompts/templates/",
 				"full-skill/tools/",
 				"full-skill/weights/",
+				"full-skill/.github/docker/Dockerfile.ci",
+				"full-skill/.github/workflows/ci.yml",
+				"full-skill/.github/workflows/publish.yml",
 			},
 		},
 		{
@@ -95,19 +113,10 @@ func TestInitCmd(t *testing.T) {
 				_ = os.Mkdir("existing-dir", 0755)
 			}
 
-			// Setup the command
 			cmd := initCmd
 			initTemplate = tc.template
 
-			// We need to set up the flags for the command
-			// Since initCmd is already added to rootCmd, we just set the variable
-			
-			// Use a helper to execute the command since it's a cobra.Command
-			// We'll call RunE directly to avoid os.Exit or printing to stdout
-			
-			// To use RunE, we need to simulate the Cobra context
 			runErr := initCmd.RunE(cmd, tc.args)
-
 
 			if (runErr != nil) != tc.wantErr {
 				t.Errorf("initCmd.RunE() error = %v, wantErr %v", runErr, tc.wantErr)

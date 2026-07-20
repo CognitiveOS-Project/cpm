@@ -16,6 +16,9 @@ var initCmd = &cobra.Command{
 	Short: "Create a .cgp skeleton directory",
 	Long: `Create a .cgp skeleton with a cognitive.json manifest.
 
+Includes GitHub Actions for CI (build + verify) and publishing (tag → GitHub Release)
+using Alpine containers via QEMU.
+
 Templates:
   default        Basic skill with system prompt and tools dir
   prompt-only    Minimal skill — just a system prompt, no tools
@@ -82,6 +85,10 @@ func initDefault(dir string) error {
 		return err
 	}
 
+	if err := writeWorkflows(dir); err != nil {
+		return err
+	}
+
 	systemPrompt := `# System Prompt
 
 You are a CognitiveOS skill. When loaded, your behavior is defined here.
@@ -112,6 +119,10 @@ func initPromptOnly(dir string) error {
 	}
 
 	if err := writeManifest(dir, manifest); err != nil {
+		return err
+	}
+
+	if err := writeWorkflows(dir); err != nil {
 		return err
 	}
 
@@ -166,6 +177,10 @@ func initMCPBridge(dir string) error {
 	}
 
 	if err := writeManifest(dir, manifest); err != nil {
+		return err
+	}
+
+	if err := writeWorkflows(dir); err != nil {
 		return err
 	}
 
@@ -225,6 +240,10 @@ func initGGUFModel(dir string) error {
 		return err
 	}
 
+	if err := writeWorkflows(dir); err != nil {
+		return err
+	}
+
 	fmt.Printf("✓ Created gguf-model skeleton in %s/\n", dir)
 	fmt.Printf("  Next: edit cognitive.json — set model_id, filename, quant, size_bytes\n")
 	return nil
@@ -275,6 +294,10 @@ func initFirmware(dir string) error {
 	}
 
 	if err := writeManifest(dir, manifest); err != nil {
+		return err
+	}
+
+	if err := writeWorkflows(dir); err != nil {
 		return err
 	}
 
@@ -335,6 +358,10 @@ func initFull(dir string) error {
 		return err
 	}
 
+	if err := writeWorkflows(dir); err != nil {
+		return err
+	}
+
 	systemPrompt := `# System Prompt
 
 You are a full-featured CognitiveOS skill with tools, prompts, templates,
@@ -351,6 +378,119 @@ and optional model weights.
 	fmt.Println("    prompts/templates/ — prompt templates")
 	fmt.Println("    tools/             — MCP servers and scripts")
 	fmt.Println("    weights/           — model weights (optional)")
+	return nil
+}
+
+const dockerfileCI = `ARG GO_VERSION=1.25
+FROM golang:${GO_VERSION}-alpine
+
+ARG WORKDIR=.
+WORKDIR /src
+COPY ${WORKDIR} .
+
+RUN apk add --no-cache jq
+RUN go install github.com/CognitiveOS-Project/cpm/cmd/cpm@latest
+
+RUN cpm pack
+RUN cpm info --json > /out/pkg.json
+RUN cp *.cgp /out/
+
+FROM scratch
+COPY --from=0 /out /out
+`
+
+const workflowCI = `name: CI
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and verify
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .github/docker/Dockerfile.ci
+          platforms: linux/amd64
+          load: true
+          tags: cgp-ci:local
+      - name: Extract artifacts
+        run: |
+          id=$(docker create cgp-ci:local)
+          docker cp $id:/out ./out
+          docker rm $id
+      - name: Show package info
+        run: cat out/pkg.json
+`
+
+const workflowPublish = `name: Publish
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and verify
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .github/docker/Dockerfile.ci
+          platforms: linux/amd64
+          load: true
+          tags: cgp-ci:local
+      - name: Extract artifacts
+        run: |
+          id=$(docker create cgp-ci:local)
+          docker cp $id:/out ./out
+          docker rm $id
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true
+`
+
+func writeWorkflows(dir string) error {
+	dirs := []string{
+		filepath.Join(dir, ".github", "docker"),
+		filepath.Join(dir, ".github", "workflows"),
+	}
+	for _, d := range dirs {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			return fmt.Errorf("create %s: %w", d, err)
+		}
+	}
+
+	files := map[string]string{
+		filepath.Join(dir, ".github", "docker", "Dockerfile.ci"):   dockerfileCI,
+		filepath.Join(dir, ".github", "workflows", "ci.yml"):       workflowCI,
+		filepath.Join(dir, ".github", "workflows", "publish.yml"):  workflowPublish,
+	}
+
+	for path, content := range files {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			return fmt.Errorf("write %s: %w", path, err)
+		}
+	}
+
 	return nil
 }
 
