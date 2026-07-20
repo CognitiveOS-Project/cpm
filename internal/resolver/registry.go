@@ -3,6 +3,7 @@ package resolver
 import (
 	"fmt"
 	"runtime"
+	"strings"
 
 	"github.com/CognitiveOS-Project/cpm/internal/registry"
 )
@@ -10,7 +11,13 @@ import (
 func resolveRegistry(target, registryURL string) (*Result, error) {
 	rc := registry.New(registryURL)
 
-	meta, err := rc.GetMetadata(target, "")
+	name, version := target, ""
+	if i := strings.LastIndex(target, "@"); i > 0 {
+		name = target[:i]
+		version = target[i+1:]
+	}
+
+	meta, err := rc.GetMetadata(name, version)
 	if err != nil {
 		return nil, fmt.Errorf("registry lookup %s: %w", target, err)
 	}

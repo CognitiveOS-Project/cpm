@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -98,15 +100,28 @@ Examples:
 			return publishOfficial(rc, keyPath, path, m)
 		}
 
+		manifestJSON, err := json.Marshal(m)
+		if err != nil {
+			return fmt.Errorf("ERROR:P009: marshal manifest: %w", err)
+		}
+
+		cgpData, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("ERROR:P013: read %s: %w", path, err)
+		}
+		hash := sha256.Sum256(cgpData)
+
 		req := registry.PublishRequest{
 			Name:        m.Name,
 			Version:     m.Version,
 			Description: m.Description,
 			Author:      m.Author,
 			DownloadURL: publishDownloadURL,
+			SHA256:      hex.EncodeToString(hash[:]),
 			Tags:        publishTags,
 			Scope:       publishScope,
 			Visibility:  publishVisibility,
+			Manifest:    manifestJSON,
 		}
 
 		if keyPath != "" {
