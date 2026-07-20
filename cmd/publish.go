@@ -10,6 +10,7 @@ import (
 
 	"github.com/CognitiveOS-Project/cpm/internal/archive"
 	"github.com/CognitiveOS-Project/cpm/internal/auth"
+	"github.com/CognitiveOS-Project/cpm/internal/config"
 	"github.com/CognitiveOS-Project/cpm/internal/registry"
 	"github.com/spf13/cobra"
 )
@@ -92,6 +93,11 @@ Examples:
 		rc := getRegistryClient()
 
 		keyPath := publishKeyPath
+		if keyPath == "" {
+			if authCfg, err := config.LoadAuth(); err == nil {
+				keyPath = authCfg.KeyPath
+			}
+		}
 		if keyPath == "" {
 			keyPath = defaultSSHKeyPath()
 		}
