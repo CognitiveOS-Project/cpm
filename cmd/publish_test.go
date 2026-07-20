@@ -25,6 +25,7 @@ type mockRegistry struct {
 	publishOfficialFunc func(fingerprint, signature string, req registry.PublishRequest, metadataJSON, cgpData []byte) error
 	registerFunc        func(publicKey string) (*registry.RegisterResponse, error)
 	authStatusFunc      func(fingerprint string) (*registry.AuthStatusResponse, error)
+	signupFunc          func(req registry.SignupRequest) (*registry.SignupResponse, error)
 }
 
 func (m *mockRegistry) Search(query string, opts registry.SearchOptions) (*registry.SearchResult, error) {
@@ -71,6 +72,12 @@ func (m *mockRegistry) CheckAuthStatus(fingerprint string) (*registry.AuthStatus
 		return m.authStatusFunc(fingerprint)
 	}
 	return &registry.AuthStatusResponse{Registered: true}, nil
+}
+func (m *mockRegistry) Signup(req registry.SignupRequest) (*registry.SignupResponse, error) {
+	if m.signupFunc != nil {
+		return m.signupFunc(req)
+	}
+	return &registry.SignupResponse{MachineID: "test-machine", Status: "approved"}, nil
 }
 
 func createTestCGP(t *testing.T, name, version string) string {

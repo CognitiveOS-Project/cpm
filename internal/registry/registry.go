@@ -66,6 +66,7 @@ type Registry interface {
 	PublishOfficial(fingerprint, signature string, req PublishRequest, metadataJSON, cgpData []byte) error
 	RegisterPublicKey(publicKey string) (*RegisterResponse, error)
 	CheckAuthStatus(fingerprint string) (*AuthStatusResponse, error)
+	Signup(req SignupRequest) (*SignupResponse, error)
 }
 
 type Client struct {
@@ -307,6 +308,17 @@ type AuthStatusResponse struct {
 	RegisteredAt string `json:"registered_at,omitempty"`
 }
 
+type SignupRequest struct {
+	Profile   json.RawMessage `json:"profile"`
+	PublicKey string          `json:"public_key"`
+	Signature string          `json:"signature"`
+}
+
+type SignupResponse struct {
+	MachineID string `json:"machine_id"`
+	Status    string `json:"status"`
+}
+
 func (c *Client) PublishSSH(fingerprint, signature string, req PublishRequest) error {
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -439,4 +451,34 @@ func (c *Client) CheckAuthStatus(fingerprint string) (*AuthStatusResponse, error
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 	return &statusResp, nil
+}
+
+func (c *Client) Signup(req SignupRequest) (*SignupResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("encode: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.BaseURL+"/auth/signup", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTP.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("network: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("registry: %s", string(respBody))
+	}
+
+	var signupResp SignupResponse
+	if err := json.NewDecoder(resp.Body).Decode(&signupResp); err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	return &signupResp, nil
 }

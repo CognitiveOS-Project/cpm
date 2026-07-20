@@ -1,13 +1,17 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/CognitiveOS-Project/cpm/internal/auth"
 	"github.com/CognitiveOS-Project/cpm/internal/config"
+	"github.com/CognitiveOS-Project/cpm/internal/machine"
+	"github.com/CognitiveOS-Project/cpm/internal/registry"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh"
 )
 
 var authKeyPath string
@@ -137,11 +141,79 @@ Examples:
 	},
 }
 
+var authSignupCmd = &cobra.Command{
+	Use:   "signup",
+	Short: "Submit machine identity profile to the registry",
+	Long: `Submit your machine's identity profile (hardware, software, network)
+and owner's SSH public key to the configured registry.
+
+The server evaluates the profile against its approval rules and
+returns an approval status. You must be approved before you can
+register keys and publish packages.
+
+Examples:
+  cpm auth signup
+  cpm auth signup --key ~/.ssh/my_key`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		keyPath := authKeyPath
+		if keyPath == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return fmt.Errorf("ERROR:A008: cannot find home directory: %w", err)
+			}
+			keyPath = filepath.Join(home, ".ssh", "id_ed25519")
+		}
+
+		signer, err := auth.LoadPrivateKey(keyPath)
+		if err != nil {
+			return fmt.Errorf("ERROR:A009: load private key: %w", err)
+		}
+
+		profile := machine.Gather()
+		profileJSON, err := json.Marshal(profile)
+		if err != nil {
+			return fmt.Errorf("ERROR:A010: marshal profile: %w", err)
+		}
+
+		sig, err := auth.SignManifest(signer, profileJSON)
+		if err != nil {
+			return fmt.Errorf("ERROR:A011: sign profile: %w", err)
+		}
+
+		pubKey, err := auth.LoadPublicKey(keyPath + ".pub")
+		if err != nil {
+			pubKeyBytes := signer.PublicKey().Marshal()
+			pubKey = string(ssh.MarshalAuthorizedKey(signer.PublicKey()))
+			_ = pubKeyBytes
+		}
+
+		rc := getRegistryClient()
+		resp, err := rc.Signup(registry.SignupRequest{
+			Profile:   profileJSON,
+			PublicKey: pubKey,
+			Signature: sig,
+		})
+		if err != nil {
+			return fmt.Errorf("ERROR:A012: signup: %w", err)
+		}
+
+		fmt.Printf("Signup submitted\n")
+		fmt.Printf("  Machine ID: %s\n", resp.MachineID)
+		fmt.Printf("  Status:     %s\n", resp.Status)
+		if resp.Status == "approved" {
+			fmt.Printf("  Next step:  cpm auth register --key %s.pub\n", keyPath)
+		}
+		return nil
+	},
+}
+
 func init() {
 	authRegisterCmd.Flags().StringVar(&authKeyPath, "key", "", "SSH public key path (default: ~/.ssh/id_ed25519.pub)")
 	authLoginCmd.Flags().StringVar(&authKeyPath, "key", "", "SSH private key path (default: ~/.ssh/id_ed25519)")
+	authSignupCmd.Flags().StringVar(&authKeyPath, "key", "", "SSH private key path (default: ~/.ssh/id_ed25519)")
 	authCmd.AddCommand(authRegisterCmd)
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authLogoutCmd)
+	authCmd.AddCommand(authSignupCmd)
 	rootCmd.AddCommand(authCmd)
 }

@@ -106,3 +106,37 @@ func TestLoginNotRegistered(t *testing.T) {
 		t.Errorf("expected registered=false, got true")
 	}
 }
+
+func TestSignup(t *testing.T) {
+	home := t.TempDir()
+	keyPath := createTempSSHKey(t)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", home)
+	defer os.Setenv("HOME", origHome)
+
+	registryClient = &mockRegistry{
+		signupFunc: func(req registry.SignupRequest) (*registry.SignupResponse, error) {
+			if req.Profile == nil {
+				t.Error("expected profile in signup request")
+			}
+			if req.PublicKey == "" {
+				t.Error("expected public_key in signup request")
+			}
+			if req.Signature == "" {
+				t.Error("expected signature in signup request")
+			}
+			return &registry.SignupResponse{
+				MachineID: "test-machine-123",
+				Status:    "approved",
+			}, nil
+		},
+	}
+	defer func() { registryClient = nil }()
+
+	rootCmd.SetArgs([]string{"auth", "signup", "--key", keyPath})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("signup failed: %v", err)
+	}
+}
