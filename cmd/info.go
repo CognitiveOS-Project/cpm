@@ -126,6 +126,16 @@ func infoPlainText(name string) error {
 		for d, v := range m.Dependencies {
 			fmt.Printf("  - %s (%s)\n", d, v)
 		}
+
+		regURL := resolveRegistry()
+		if regURL != "" {
+			rc := registry.New(regURL)
+			tree, err := rc.GetDependencies(m.Name)
+			if err == nil && tree != nil && len(tree.Dependencies) > 0 {
+				fmt.Println("\nDependency tree:")
+				printDepTree(tree, "  ", 0)
+			}
+		}
 	} else {
 		fmt.Println("Dependencies:   (none)")
 	}
@@ -175,6 +185,38 @@ func infoPlainText(name string) error {
 	}
 
 	return nil
+}
+
+func printDepTree(tree *registry.DependencyTree, prefix string, depth int) {
+	if depth > 0 {
+		fmt.Printf("%s├── %s@%s\n", prefix, tree.Name, tree.Version)
+	} else {
+		fmt.Printf("%s%s@%s\n", prefix, tree.Name, tree.Version)
+	}
+	for i, dep := range tree.Dependencies {
+		isLast := i == len(tree.Dependencies)-1
+		connector := "├── "
+		if isLast {
+			connector = "└── "
+		}
+		childPrefix := prefix + "│   "
+		if isLast {
+			childPrefix = prefix + "    "
+		}
+		if len(dep.Dependencies) > 0 {
+			fmt.Printf("%s%s%s@%s\n", prefix, connector, dep.Name, dep.Version)
+			for j, child := range dep.Dependencies {
+				childLast := j == len(dep.Dependencies)-1
+				childConn := "├── "
+				if childLast {
+					childConn = "└── "
+				}
+				fmt.Printf("%s%s%s%s@%s\n", childPrefix, childConn, "├── ", child.Name, child.Version)
+			}
+		} else {
+			fmt.Printf("%s%s%s@%s\n", prefix, connector, dep.Name, dep.Version)
+		}
+	}
 }
 
 func dirSize(path string) int64 {
