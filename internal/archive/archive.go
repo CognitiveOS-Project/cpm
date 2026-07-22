@@ -37,6 +37,7 @@ type Manifest struct {
 	Runtime             *RuntimeConfig     `json:"runtime,omitempty"`
 	Training            *TrainingConfig    `json:"training,omitempty"`
 	Checksum            *ChecksumInfo      `json:"checksum,omitempty"`
+	UnlockCodes         []string           `json:"unlock_codes,omitempty"`
 }
 
 type ChecksumInfo struct {

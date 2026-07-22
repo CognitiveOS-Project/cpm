@@ -16,6 +16,7 @@ import (
 	"github.com/CognitiveOS-Project/cpm/internal/manager"
 	"github.com/CognitiveOS-Project/cpm/internal/patch"
 	"github.com/CognitiveOS-Project/cpm/internal/queue"
+	"github.com/CognitiveOS-Project/cpm/internal/registry"
 	"github.com/CognitiveOS-Project/cpm/internal/resolver"
 	"github.com/CognitiveOS-Project/cpm/internal/schema"
 	"github.com/CognitiveOS-Project/cpm/internal/weights"
@@ -36,7 +37,10 @@ Sources include:
   - npm package:         cpm install npm:@scope/name
   - Bun package:         cpm install bun:name
   - Deno module:         cpm install deno:@scope/name
-  - Direct URL:          cpm install https://example.com/pkg.cgp`,
+  - Direct URL:          cpm install https://example.com/pkg.cgp
+
+If the package requires an unlock code, use --unlock:
+  cpm install email-manager --unlock MY-CODE-123`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
@@ -50,6 +54,8 @@ Sources include:
 		return installWithDeps(target, regURL)
 	},
 }
+
+var unlockCode string
 
 func installWithDeps(target, regURL string) error {
 	result, err := resolver.Resolve(target, regURL)
@@ -67,6 +73,17 @@ func installWithDeps(target, regURL string) error {
 	doc := buildSchemaDoc(m)
 	if err := schema.Validate(doc); err != nil {
 		return fmt.Errorf("ERROR:I002: schema validation: %w", err)
+	}
+
+	if len(m.UnlockCodes) > 0 {
+		if unlockCode == "" {
+			log.Error("This package requires an unlock code. Use: cpm install %s --unlock <code>", target)
+			return fmt.Errorf("ERROR:I012: unlock code required for %s", m.Name)
+		}
+		log.Info("Verifying unlock code for %s", m.Name)
+		if err := verifyUnlockCode(m.Name, m.Version, unlockCode, resolveRegistry()); err != nil {
+			return fmt.Errorf("ERROR:I013: unlock failed: %w", err)
+		}
 	}
 
 	if len(m.Dependencies) > 0 {
@@ -360,5 +377,11 @@ func copyDir(src, dst string) error {
 }
 
 func init() {
+	installCmd.Flags().StringVar(&unlockCode, "unlock", "", "unlock code for packages that require it")
 	rootCmd.AddCommand(installCmd)
+}
+
+func verifyUnlockCode(name, version, code, regURL string) error {
+	rc := registry.New(regURL)
+	return rc.Unlock(name, version, code)
 }
