@@ -8,38 +8,86 @@ It is the npm/pip/apt for the agent era — hardware-aware, MCP-native, and desi
 
 ```bash
 make build
-./build/bin/cpm init my-skill
 
 # Create a skill skeleton
-./bin/cpm init my-skill
+./build/bin/cpm init my-skill
 cd my-skill
 # Edit cognitive.json, add prompts/ and tools/
 
+# Pack into a .cgp archive
+./build/bin/cpm pack
+
+# Search the registry
+./build/bin/cpm search skill
+
 # Install from a local archive
-./bin/cpm install ./my-skill.cgp
+./build/bin/cpm install ./my-skill.cgp
+
+# Install from the registry (with optional unlock)
+./build/bin/cpm install my-skill
+./build/bin/cpm install my-skill --unlock <code>
 
 # List installed patches
-./bin/cpm list
+./build/bin/cpm list
 
 # Show patch details
-./bin/cpm info my-skill
+./build/bin/cpm info my-skill
+./build/bin/cpm info my-skill --json
 
 # Remove a patch
-./bin/cpm remove my-skill
+./build/bin/cpm remove my-skill
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `init <dir>` | Create a .cgp skeleton directory |
-| `install <path\|name>` | Install from local .cgp or registry |
-| `remove <name>` | Uninstall a patch |
-| `list` | List installed patches |
-| `info <name>` | Show manifest details |
-| `verify <path>` | Validate a .cgp archive |
-| `search <query>` | Search the registry |
-| `update <name>` | Update to latest version |
+| `cpm init <dir>` | Create a .cgp skeleton directory |
+| `cpm install <path\|name>` | Install from local .cgp or registry |
+| `cpm install <name> --unlock <code>` | Install a locked package with an unlock code |
+| `cpm remove <name>` | Uninstall a patch |
+| `cpm list` | List installed patches |
+| `cpm info <name>` | Show manifest details |
+| `cpm info <name> --json` | Machine-readable JSON output |
+| `cpm verify <path>` | Validate a .cgp archive |
+| `cpm pack` | Create a .cgp archive from current directory |
+| `cpm search <query>` | Search the registry |
+| `cpm update <name>` | Update to latest version |
+| `cpm tune` | Tune inference parameters |
+| `cpm publish <path>` | Publish a package to the registry |
+| `cpm download-weights <name>` | Download model weights for a package |
+
+### Auth Commands
+
+| Command | Description |
+|---------|-------------|
+| `cpm auth signup --key <path>` | Register machine identity profile with the registry |
+| `cpm auth login --key <path>` | Store SSH key path locally and verify with registry |
+| `cpm auth logout` | Clear local auth state |
+
+### Publish
+
+Publish a package to the registry:
+
+```bash
+# Official publish — server creates GitHub Release and hosts the .cgp
+cpm publish ./my-skill.cgp
+
+# Notary proxy — register metadata only, host the .cgp yourself
+cpm publish ./my-skill.cgp --download-url https://example.com/my-skill.cgp
+```
+
+**Key resolution** (in order): `--key` flag → `~/.cpm/auth.json` (from `cpm auth login`) → default `~/.ssh/id_ed25519` → `CPM_REGISTRY_TOKEN` (deprecated).
+
+**32 MB size guard:** Official publish rejects `.cgp` files over 32 MB (Cloud Run limit). For large packages, use `--download-url` to host externally, or split weights from the core archive.
+
+### Init CI/CD Templates
+
+`cpm init` generates `.github/docker/Dockerfile.ci`, `.github/workflows/ci.yml`, and `.github/workflows/publish.yml` alongside the skeleton:
+
+- **Dockerfile.ci:** Alpine multi-stage build with `cpm pack` + `cpm info --json`
+- **CI workflow:** Builds via Docker Buildx, extracts artifacts, outputs package metadata
+- **Publish workflow:** Same build, then creates a GitHub Release with the `.cgp` asset
 
 ## Development
 
@@ -69,10 +117,11 @@ make clean    # Remove build artifacts
 
 ## Contributing
 
-1. Branch from `main`
-2. Use topic branches: `feature/<name>`, `fix/<name>`
-3. Open a PR to `main` with a clear title and description
-4. Merge after review
+1. Branch from `development`, not `main`
+2. Use topic branches: `feature/<name>`, `fix/<name>`, `bugfix/<name>`
+3. Open a PR to `development` with a clear title and description
+4. Merge via squash after review
+5. Changes flow to `main` via a release PR
 
 See the [SDLC repo](https://github.com/CognitiveOS-Project/sdlc) for the full contribution guide, code review standards, and testing strategy.
 
