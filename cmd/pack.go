@@ -188,9 +188,16 @@ func collectManifestRefs(m *archive.Manifest) []string {
 				refs = append(refs, filepath.Join("weights", f))
 			}
 		}
-		if m.Brain.WideModel != nil && m.Brain.WideModel.Weights != nil && m.Brain.WideModel.Weights.Remote != nil {
-			if f := m.Brain.WideModel.Weights.Remote.Filename; f != "" {
-				refs = append(refs, filepath.Join("weights", f))
+		if m.Brain.WideModel != nil && m.Brain.WideModel.Weights != nil {
+			if m.Brain.WideModel.Weights.Remote != nil {
+				if f := m.Brain.WideModel.Weights.Remote.Filename; f != "" {
+					refs = append(refs, filepath.Join("weights", f))
+				}
+			}
+			if m.Brain.WideModel.Weights.Local != nil {
+				if p := m.Brain.WideModel.Weights.Local.Path; p != "" {
+					refs = append(refs, p)
+				}
 			}
 		}
 	}

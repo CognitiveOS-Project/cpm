@@ -75,7 +75,10 @@ type ModelConfig struct {
 }
 
 type WeightsConfig struct {
+	Method string         `json:"method,omitempty"` // "remote", "local", "cloud"
 	Remote *RemoteWeights `json:"remote,omitempty"`
+	Local  *LocalWeights  `json:"local,omitempty"`
+	Cloud  *CloudWeights  `json:"cloud,omitempty"`
 }
 
 type RemoteWeights struct {
@@ -86,6 +89,16 @@ type RemoteWeights struct {
 	Format   string `json:"format,omitempty"`
 	Quant    string `json:"quant,omitempty"`
 	SHA256   string `json:"sha256,omitempty"`
+}
+
+type LocalWeights struct {
+	Path string `json:"path,omitempty"` // Relative path in archive (e.g. "weights/model.gguf")
+}
+
+type CloudWeights struct {
+	APIBase string `json:"api_base,omitempty"` // OpenAI-compatible endpoint (e.g. "https://api.openai.com/v1")
+	ModelID string `json:"model_id,omitempty"` // Model name at provider (e.g. "gpt-4o-mini")
+	APIKey  string `json:"api_key,omitempty"`  // API key (supports ${SECRET_NAME} placeholders)
 }
 
 type BrainParameters struct {

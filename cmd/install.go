@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/CognitiveOS-Project/cpm/internal/archive"
 	"github.com/CognitiveOS-Project/cpm/internal/audit"
@@ -151,6 +153,16 @@ func installWithDeps(target, regURL string) error {
 		return fmt.Errorf("ERROR:I007: download weights: %w", err)
 	}
 
+	// Validate cloud API reachability
+	if err := validateCloudAPIs(result.DataDir); err != nil {
+		return fmt.Errorf("ERROR:I011: cloud API validation: %w", err)
+	}
+
+	// Resolve secrets in manifest before moving to install path
+	if err := resolveManifestSecrets(result.DataDir, m.Name); err != nil {
+		return fmt.Errorf("ERROR:I010: secret resolution: %w", err)
+	}
+
 	installPath := patch.Dir(m.Name)
 	_ = os.RemoveAll(installPath)
 	if err := os.MkdirAll(filepath.Dir(installPath), 0755); err != nil {
@@ -273,6 +285,13 @@ func downloadRemoteWeights(dataDir string) error {
 		if weightsCfg == nil {
 			return
 		}
+
+		// Check method — skip download for cloud and local
+		method, _ := weightsCfg["method"].(string)
+		if method == "cloud" || method == "local" {
+			return
+		}
+
 		remote, _ := weightsCfg["remote"].(map[string]interface{})
 		if remote == nil {
 			return
@@ -384,4 +403,83 @@ func init() {
 func verifyUnlockCode(name, version, code, regURL string) error {
 	rc := registry.New(regURL)
 	return rc.Unlock(name, version, code)
+}
+
+func resolveManifestSecrets(dataDir, patchName string) error {
+	manifestPath := filepath.Join(dataDir, "cognitive.json")
+	m, err := archive.LoadManifest(manifestPath)
+	if err != nil {
+		return nil // no manifest, nothing to resolve
+	}
+
+	if err := archive.ResolveManifest(m, "patch", patchName); err != nil {
+		return err
+	}
+
+	// Write resolved manifest back
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal resolved manifest: %w", err)
+	}
+
+	return os.WriteFile(manifestPath, data, 0644)
+}
+
+func validateCloudAPIs(dataDir string) error {
+	raw, err := os.ReadFile(filepath.Join(dataDir, "cognitive.json"))
+	if err != nil {
+		return nil
+	}
+
+	var doc map[string]interface{}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil
+	}
+
+	brain, _ := doc["brain"].(map[string]interface{})
+	if brain == nil {
+		return nil
+	}
+
+	validateCloud := func(kindKey string) error {
+		modelCfg, _ := brain[kindKey].(map[string]interface{})
+		if modelCfg == nil {
+			return nil
+		}
+		weightsCfg, _ := modelCfg["weights"].(map[string]interface{})
+		if weightsCfg == nil {
+			return nil
+		}
+		method, _ := weightsCfg["method"].(string)
+		if method != "cloud" {
+			return nil
+		}
+		cloud, _ := weightsCfg["cloud"].(map[string]interface{})
+		if cloud == nil {
+			return nil
+		}
+		apiBase, _ := cloud["api_base"].(string)
+		if apiBase == "" {
+			return nil
+		}
+		return testReachability(apiBase)
+	}
+
+	if err := validateCloud("wide_model"); err != nil {
+		return fmt.Errorf("wide model cloud API: %w", err)
+	}
+	if err := validateCloud("raw_model"); err != nil {
+		return fmt.Errorf("raw model cloud API: %w", err)
+	}
+	return nil
+}
+
+func testReachability(url string) error {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Head(url)
+	if err != nil {
+		return fmt.Errorf("unreachable: %w", err)
+	}
+	resp.Body.Close()
+	return nil
 }
