@@ -82,13 +82,14 @@ type WeightsConfig struct {
 }
 
 type RemoteWeights struct {
-	Source   string `json:"source,omitempty"`
-	ModelID  string `json:"model_id,omitempty"`
-	URL      string `json:"url,omitempty"`
-	Filename string `json:"filename,omitempty"`
-	Format   string `json:"format,omitempty"`
-	Quant    string `json:"quant,omitempty"`
-	SHA256   string `json:"sha256,omitempty"`
+	Source    string `json:"source,omitempty"`
+	ModelID   string `json:"model_id,omitempty"`
+	URL       string `json:"url,omitempty"`
+	Filename  string `json:"filename,omitempty"`
+	Format    string `json:"format,omitempty"`
+	Quant     string `json:"quant,omitempty"`
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+	SHA256    string `json:"sha256,omitempty"`
 }
 
 type LocalWeights struct {
