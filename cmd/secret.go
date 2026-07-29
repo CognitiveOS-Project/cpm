@@ -85,7 +85,11 @@ var secretListCmd = &cobra.Command{
 
 		// Show patch secrets
 		if patch != nil && len(patch.Secrets) > 0 {
-			fmt.Fprintf(out, "%s:\n", strings.Title(secretScope))
+			scopeTitle := secretScope
+			if len(scopeTitle) > 0 {
+				scopeTitle = strings.ToUpper(scopeTitle[:1]) + scopeTitle[1:]
+			}
+			fmt.Fprintf(out, "%s:\n", scopeTitle)
 			for k, v := range patch.Secrets {
 				if secretReveal {
 					fmt.Fprintf(out, "  %s\t%s\n", k, v)
