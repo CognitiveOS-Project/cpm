@@ -26,3 +26,6 @@ bin/
 * 2.*
 * 2/
 build/
+
+# macOS AppleDouble / Finder metadata
+._*
