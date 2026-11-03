@@ -35,7 +35,7 @@ func Load(path string) (*Registries, error) {
 	}
 
 	var file struct {
-		Official     struct {
+		Official struct {
 			Primary string            `toml:"primary"`
 			Mirrors map[string]string `toml:"mirrors"`
 		} `toml:"official"`

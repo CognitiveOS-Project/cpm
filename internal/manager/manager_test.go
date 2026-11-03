@@ -154,12 +154,12 @@ func TestInstall(t *testing.T) {
 
 func TestIsInstalled(t *testing.T) {
 	tests := []struct {
-		name     string
-		root     string
-		dep      archive.SystemDependency
-		runFunc  func(name string, args ...string) error
-		want     bool
-		wantErr  bool
+		name    string
+		root    string
+		dep     archive.SystemDependency
+		runFunc func(name string, args ...string) error
+		want    bool
+		wantErr bool
 	}{
 		{
 			name: "apk installed",
@@ -193,9 +193,9 @@ func TestIsInstalled(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "other manager",
-			root: "/",
-			dep:  archive.SystemDependency{Name: "zlib", Manager: "npm"},
+			name:    "other manager",
+			root:    "/",
+			dep:     archive.SystemDependency{Name: "zlib", Manager: "npm"},
 			want:    false,
 			wantErr: false,
 		},
@@ -220,41 +220,41 @@ func TestIsInstalled(t *testing.T) {
 
 func TestResolveVersion(t *testing.T) {
 	tests := []struct {
-		name     string
-		root     string
-		dep      archive.SystemDependency
-		output   string
-		want     string
-		wantErr  bool
+		name    string
+		root    string
+		dep     archive.SystemDependency
+		output  string
+		want    string
+		wantErr bool
 	}{
 		{
-			name: "apk success",
-			root: "/",
-			dep:  archive.SystemDependency{Name: "zlib", Manager: "apk"},
-			output: "zlib-1.2.11-r0",
-			want: "1.2.11",
+			name:    "apk success",
+			root:    "/",
+			dep:     archive.SystemDependency{Name: "zlib", Manager: "apk"},
+			output:  "zlib-1.2.11-r0",
+			want:    "1.2.11",
 			wantErr: false,
 		},
 		{
-			name: "apk not found",
-			root: "/",
-			dep:  archive.SystemDependency{Name: "fake", Manager: "apk"},
-			output: "",
-			want: "latest",
+			name:    "apk not found",
+			root:    "/",
+			dep:     archive.SystemDependency{Name: "fake", Manager: "apk"},
+			output:  "",
+			want:    "latest",
 			wantErr: false,
 		},
 		{
-			name: "apk error",
-			root: "/",
-			dep:  archive.SystemDependency{Name: "zlib", Manager: "apk"},
-			output: "",
+			name:    "apk error",
+			root:    "/",
+			dep:     archive.SystemDependency{Name: "zlib", Manager: "apk"},
+			output:  "",
 			wantErr: true,
 		},
 		{
-			name: "other manager",
-			root: "/",
-			dep:  archive.SystemDependency{Name: "zlib", Manager: "npm"},
-			want: "latest",
+			name:    "other manager",
+			root:    "/",
+			dep:     archive.SystemDependency{Name: "zlib", Manager: "npm"},
+			want:    "latest",
 			wantErr: false,
 		},
 	}

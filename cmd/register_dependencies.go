@@ -13,10 +13,10 @@ import (
 var registerDepsCmd = &cobra.Command{
 	Use:   "register-dependencies <package>",
 	Short: "Register system-level dependencies for an installed patch in the queue",
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		packageName := args[0]
-		
+
 		// Resolve root from global flag
 		root := "/"
 		if rootDir != "/" {
@@ -29,7 +29,7 @@ var registerDepsCmd = &cobra.Command{
 		if root != "/" {
 			installPath = fmt.Sprintf("%s/%s", root, installPath)
 		}
-		
+
 		manifest, err := archive.LoadManifest(installPath)
 		if err != nil {
 			return fmt.Errorf("could not load manifest for %s: %w", packageName, err)

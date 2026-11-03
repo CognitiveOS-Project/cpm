@@ -1,8 +1,8 @@
 package schema
 
 import (
-	"encoding/json"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
