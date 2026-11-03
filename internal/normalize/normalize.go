@@ -60,12 +60,12 @@ func detectManifest(dir string) (*archive.Manifest, error) {
 }
 
 type packageJSON struct {
-	Name            string                 `json:"name"`
-	Version         string                 `json:"version"`
-	Description     string                 `json:"description,omitempty"`
-	Author          string                 `json:"author,omitempty"`
-	License         string                 `json:"license,omitempty"`
-	CognitiveOS     map[string]interface{} `json:"cognitive_os"`
+	Name        string                 `json:"name"`
+	Version     string                 `json:"version"`
+	Description string                 `json:"description,omitempty"`
+	Author      string                 `json:"author,omitempty"`
+	License     string                 `json:"license,omitempty"`
+	CognitiveOS map[string]interface{} `json:"cognitive_os"`
 }
 
 func parsePackageJSON(data []byte) (*archive.Manifest, error) {

@@ -480,9 +480,9 @@ func writeWorkflows(dir string) error {
 	}
 
 	files := map[string]string{
-		filepath.Join(dir, ".github", "docker", "Dockerfile.ci"):   dockerfileCI,
-		filepath.Join(dir, ".github", "workflows", "ci.yml"):       workflowCI,
-		filepath.Join(dir, ".github", "workflows", "publish.yml"):  workflowPublish,
+		filepath.Join(dir, ".github", "docker", "Dockerfile.ci"):  dockerfileCI,
+		filepath.Join(dir, ".github", "workflows", "ci.yml"):      workflowCI,
+		filepath.Join(dir, ".github", "workflows", "publish.yml"): workflowPublish,
 	}
 
 	for path, content := range files {

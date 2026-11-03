@@ -8,10 +8,10 @@ import (
 
 func TestInitCmd(t *testing.T) {
 	tests := []struct {
-		name      string
-		args      []string
-		template  string
-		wantErr   bool
+		name       string
+		args       []string
+		template   string
+		wantErr    bool
 		checkFiles []string
 	}{
 		{
@@ -28,8 +28,8 @@ func TestInitCmd(t *testing.T) {
 			},
 		},
 		{
-			name: "prompt-only template",
-			args: []string{"prompt-skill"},
+			name:     "prompt-only template",
+			args:     []string{"prompt-skill"},
 			template: "prompt-only",
 			checkFiles: []string{
 				"prompt-skill/cognitive.json",
@@ -40,8 +40,8 @@ func TestInitCmd(t *testing.T) {
 			},
 		},
 		{
-			name: "mcp-bridge template",
-			args: []string{"bridge-skill"},
+			name:     "mcp-bridge template",
+			args:     []string{"bridge-skill"},
 			template: "mcp-bridge",
 			checkFiles: []string{
 				"bridge-skill/cognitive.json",
@@ -52,8 +52,8 @@ func TestInitCmd(t *testing.T) {
 			},
 		},
 		{
-			name: "gguf-model template",
-			args: []string{"model-skill"},
+			name:     "gguf-model template",
+			args:     []string{"model-skill"},
 			template: "gguf-model",
 			checkFiles: []string{
 				"model-skill/cognitive.json",
@@ -63,8 +63,8 @@ func TestInitCmd(t *testing.T) {
 			},
 		},
 		{
-			name: "firmware template",
-			args: []string{"firmware-skill"},
+			name:     "firmware template",
+			args:     []string{"firmware-skill"},
 			template: "firmware",
 			checkFiles: []string{
 				"firmware-skill/cognitive.json",
@@ -74,8 +74,8 @@ func TestInitCmd(t *testing.T) {
 			},
 		},
 		{
-			name: "full template",
-			args: []string{"full-skill"},
+			name:     "full template",
+			args:     []string{"full-skill"},
 			template: "full",
 			checkFiles: []string{
 				"full-skill/cognitive.json",
@@ -89,8 +89,8 @@ func TestInitCmd(t *testing.T) {
 			},
 		},
 		{
-			name: "directory already exists",
-			args: []string{"existing-dir"},
+			name:    "directory already exists",
+			args:    []string{"existing-dir"},
 			wantErr: true,
 		},
 	}

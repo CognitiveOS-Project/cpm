@@ -13,10 +13,10 @@ import (
 
 // QueueEntry represents a parsed queue file.
 type QueueEntry struct {
-	Filename    string                     `json:"-"`
-	PatchName   string                     `json:"patch_name"`
+	Filename     string                   `json:"-"`
+	PatchName    string                   `json:"patch_name"`
 	PatchVersion string                   `json:"patch_version"`
-	Dependency  archive.SystemDependency `json:"dependency"`
+	Dependency   archive.SystemDependency `json:"dependency"`
 	RegisteredAt time.Time                `json:"registered_at"`
 }
 
@@ -36,7 +36,7 @@ func Register(root, patchName, patchVersion string, dep archive.SystemDependency
 	sPatchName := sanitize(patchName)
 	sPatchVersion := sanitize(patchVersion)
 	sDepName := sanitize(dep.Name)
-	
+
 	version := dep.Version
 	if version == "" {
 		version = "latest"

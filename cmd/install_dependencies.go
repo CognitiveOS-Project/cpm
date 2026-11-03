@@ -47,7 +47,7 @@ var installDepsCmd = &cobra.Command{
 				_ = queue.MarkInstalled(root, stage, entry.Filename)
 				continue
 			}
-			
+
 			if err := queue.MarkInstalled(root, stage, entry.Filename); err != nil {
 				return fmt.Errorf("failed to mark %s as installed: %w", entry.Dependency.Name, err)
 			}
