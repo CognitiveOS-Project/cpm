@@ -84,6 +84,9 @@ Files are placed at:
 		}
 		if match == nil {
 			for i := range candidates {
+				if !strings.HasSuffix(strings.ToLower(candidates[i].Filename), formatExt) {
+					continue
+				}
 				if !strings.Contains(strings.ToLower(candidates[i].Filename), strings.ToLower(modelName)) {
 					continue
 				}
@@ -93,9 +96,11 @@ Files are placed at:
 			}
 		}
 		if match == nil && len(candidates) > 0 {
-			match = &candidates[0]
 			for i := range candidates {
-				if candidates[i].SizeBytes < match.SizeBytes {
+				if !strings.HasSuffix(strings.ToLower(candidates[i].Filename), formatExt) {
+					continue
+				}
+				if match == nil || candidates[i].SizeBytes < match.SizeBytes {
 					match = &candidates[i]
 				}
 			}
