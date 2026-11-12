@@ -88,12 +88,12 @@ func TestLoadReturnsEmptyWhenNotExist(t *testing.T) {
 
 func TestMergeSecrets(t *testing.T) {
 	global := &Secrets{Secrets: map[string]string{
-		"GLOBAL_KEY":  "global-val",
-		"SHARED_KEY":  "global-shared",
+		"GLOBAL_KEY": "global-val",
+		"SHARED_KEY": "global-shared",
 	}}
 	patch := &Secrets{Secrets: map[string]string{
-		"PATCH_KEY":   "patch-val",
-		"SHARED_KEY":  "patch-shared",
+		"PATCH_KEY":  "patch-val",
+		"SHARED_KEY": "patch-shared",
 	}}
 
 	merged := MergeSecrets(global, patch)

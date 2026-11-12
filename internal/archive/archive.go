@@ -24,20 +24,20 @@ type HardwareDependencies struct {
 }
 
 type Manifest struct {
-	Name                string             `json:"name"`
-	Version             string             `json:"version"`
-	Description         string             `json:"description"`
-	Author              string             `json:"author,omitempty"`
-	License             string             `json:"license,omitempty"`
-	Source              *SourceInfo        `json:"source,omitempty"`
-	Dependencies        map[string]string  `json:"dependencies,omitempty"`
-	HardwareRequirements *HardwareReq      `json:"hardware_requirements,omitempty"`
+	Name                 string                `json:"name"`
+	Version              string                `json:"version"`
+	Description          string                `json:"description"`
+	Author               string                `json:"author,omitempty"`
+	License              string                `json:"license,omitempty"`
+	Source               *SourceInfo           `json:"source,omitempty"`
+	Dependencies         map[string]string     `json:"dependencies,omitempty"`
+	HardwareRequirements *HardwareReq          `json:"hardware_requirements,omitempty"`
 	HardwareDependencies *HardwareDependencies `json:"hardware_dependencies,omitempty"`
-	Brain               *BrainConfig       `json:"brain,omitempty"`
-	Runtime             *RuntimeConfig     `json:"runtime,omitempty"`
-	Training            *TrainingConfig    `json:"training,omitempty"`
-	Checksum            *ChecksumInfo      `json:"checksum,omitempty"`
-	UnlockCodes         []string           `json:"unlock_codes,omitempty"`
+	Brain                *BrainConfig          `json:"brain,omitempty"`
+	Runtime              *RuntimeConfig        `json:"runtime,omitempty"`
+	Training             *TrainingConfig       `json:"training,omitempty"`
+	Checksum             *ChecksumInfo         `json:"checksum,omitempty"`
+	UnlockCodes          []string              `json:"unlock_codes,omitempty"`
 }
 
 type ChecksumInfo struct {
@@ -60,18 +60,18 @@ type HardwareReq struct {
 }
 
 type BrainConfig struct {
-	BaseModel string        `json:"base_model,omitempty"`
-	Adapter   string        `json:"adapter,omitempty"`
-	RawModel  *ModelConfig  `json:"raw_model,omitempty"`
-	WideModel *ModelConfig  `json:"wide_model,omitempty"`
+	BaseModel string       `json:"base_model,omitempty"`
+	Adapter   string       `json:"adapter,omitempty"`
+	RawModel  *ModelConfig `json:"raw_model,omitempty"`
+	WideModel *ModelConfig `json:"wide_model,omitempty"`
 }
 
 type ModelConfig struct {
-	BaseModel  string              `json:"base_model,omitempty"`
-	Adapter    string              `json:"adapter,omitempty"`
-	Weights    *WeightsConfig      `json:"weights,omitempty"`
-	Parameters *BrainParameters    `json:"parameters,omitempty"`
-	Routing    []RoutingHint       `json:"routing,omitempty"`
+	BaseModel  string           `json:"base_model,omitempty"`
+	Adapter    string           `json:"adapter,omitempty"`
+	Weights    *WeightsConfig   `json:"weights,omitempty"`
+	Parameters *BrainParameters `json:"parameters,omitempty"`
+	Routing    []RoutingHint    `json:"routing,omitempty"`
 }
 
 type WeightsConfig struct {
@@ -113,11 +113,11 @@ type RoutingHint struct {
 }
 
 type RuntimeConfig struct {
-	SystemPrompt string       `json:"system_prompt,omitempty"`
-	ToolsRoot    string       `json:"tools_root,omitempty"`
-	MCPServers   []MCPServer  `json:"mcp_servers,omitempty"`
-	Background   bool         `json:"background,omitempty"`
-	Capabilities []string     `json:"capabilities,omitempty"`
+	SystemPrompt string      `json:"system_prompt,omitempty"`
+	ToolsRoot    string      `json:"tools_root,omitempty"`
+	MCPServers   []MCPServer `json:"mcp_servers,omitempty"`
+	Background   bool        `json:"background,omitempty"`
+	Capabilities []string    `json:"capabilities,omitempty"`
 }
 
 type TrainingConfig struct {
@@ -152,7 +152,7 @@ func ReadManifest(r io.Reader) (*Manifest, error) {
 		return nil, fmt.Errorf("gzip: %w", err)
 	}
 	defer gzr.Close()
-	
+
 	tr := tar.NewReader(gzr)
 	for {
 		hdr, err := tr.Next()

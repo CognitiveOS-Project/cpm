@@ -46,9 +46,9 @@ the designated training tool via the system daemon.`,
 		if tuneFinalize {
 			// Finalize/Quantize
 			payload := map[string]interface{}{
-				"package":   pkgName,
-				"quantize":  tuneQuantize,
-				"finalize":  true,
+				"package":  pkgName,
+				"quantize": tuneQuantize,
+				"finalize": true,
 			}
 			if err := daemon.SendMessage("cpm_tune", payload); err != nil {
 				return fmt.Errorf("ERROR:T104: failed to trigger finalization: %w", err)
@@ -69,7 +69,7 @@ the designated training tool via the system daemon.`,
 			}
 
 			if m.Training.DataRequirements != nil && samples < m.Training.DataRequirements.MinSamples {
-				return fmt.Errorf("ERROR:T105: insufficient data for tuning (%d/%d samples)", 
+				return fmt.Errorf("ERROR:T105: insufficient data for tuning (%d/%d samples)",
 					samples, m.Training.DataRequirements.MinSamples)
 			}
 
@@ -82,7 +82,7 @@ the designated training tool via the system daemon.`,
 			if err := daemon.SendMessage("cpm_tune", payload); err != nil {
 				return fmt.Errorf("ERROR:T106: failed to trigger tuning: %w", err)
 			}
-			fmt.Printf("✓ Tuning triggered for %s (background: %v, epochs: %d)\n", 
+			fmt.Printf("✓ Tuning triggered for %s (background: %v, epochs: %d)\n",
 				pkgName, tuneBackground, tuneEpochs)
 		}
 

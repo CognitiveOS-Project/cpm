@@ -18,20 +18,20 @@ type SearchResult struct {
 }
 
 type PatchSummary struct {
-	Name                string `json:"name"`
-	Version             string `json:"version"`
-	Description         string `json:"description"`
-	License             string `json:"license"`
-	ChecksumSHA256      string `json:"checksum_sha256"`
+	Name           string `json:"name"`
+	Version        string `json:"version"`
+	Description    string `json:"description"`
+	License        string `json:"license"`
+	ChecksumSHA256 string `json:"checksum_sha256"`
 }
 
 type PatchMetadata struct {
-	Name            string   `json:"name"`
-	Version         string   `json:"version"`
-	Description     string   `json:"description"`
-	ChecksumSHA256  string   `json:"checksum_sha256"`
-	DownloadURL     string   `json:"download_url"`
-	Status          string   `json:"status"`
+	Name           string `json:"name"`
+	Version        string `json:"version"`
+	Description    string `json:"description"`
+	ChecksumSHA256 string `json:"checksum_sha256"`
+	DownloadURL    string `json:"download_url"`
+	Status         string `json:"status"`
 }
 
 type VersionInfo struct {
@@ -40,9 +40,9 @@ type VersionInfo struct {
 }
 
 type DependencyTree struct {
-	Name         string            `json:"name"`
-	Version      string            `json:"version"`
-	Dependencies []DependencyTree  `json:"dependencies"`
+	Name         string           `json:"name"`
+	Version      string           `json:"version"`
+	Dependencies []DependencyTree `json:"dependencies"`
 }
 
 type SearchOptions struct {
@@ -231,7 +231,7 @@ func (c *Client) Download(name, version string, opts DownloadOptions) (io.ReadCl
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("User-Agent", "cpm/1.0")
-	
+
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {

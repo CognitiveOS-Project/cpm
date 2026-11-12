@@ -32,12 +32,12 @@ var searchCmd = &cobra.Command{
 
 		rc := registry.New(regURL)
 		opts := registry.SearchOptions{
-			License:     searchLicense,
-			MinRAM:      searchMinRAM,
-			Page:        searchPage,
-			PerPage:     20,
-			Capability:  searchCapability,
-			Exact:       searchExact,
+			License:    searchLicense,
+			MinRAM:     searchMinRAM,
+			Page:       searchPage,
+			PerPage:    20,
+			Capability: searchCapability,
+			Exact:      searchExact,
 		}
 		results, err := rc.Search(query, opts)
 		if err != nil {

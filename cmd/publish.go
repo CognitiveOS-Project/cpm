@@ -19,10 +19,10 @@ const maxCGPSize = 32 << 20 // 32 MB Cloud Run request limit
 
 var (
 	publishDownloadURL string
-	publishTags       []string
-	publishScope      string
-	publishVisibility string
-	publishKeyPath    string
+	publishTags        []string
+	publishScope       string
+	publishVisibility  string
+	publishKeyPath     string
 )
 
 var registryClient registry.Registry
