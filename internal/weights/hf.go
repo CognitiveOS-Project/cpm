@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 )
 
@@ -74,7 +75,11 @@ func (p *HFProvider) Search(ctx context.Context, query string, limit int, format
 
 		for _, file := range model.Siblings {
 			name := strings.ToLower(file.RFilename)
-			if !strings.HasSuffix(name, ".gguf") && !strings.HasSuffix(name, ".safetensors") {
+			ext := filepath.Ext(name)
+			if format == FormatGGUF && ext != ".gguf" {
+				continue
+			}
+			if format == FormatSafeTensors && ext != ".safetensors" {
 				continue
 			}
 
